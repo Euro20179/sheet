@@ -59,6 +59,15 @@ impl Table {
         }
     }
 
+    pub fn add_col(&mut self, col_no: usize) {
+        let mut col: Vec<Data> = vec![];
+        self.pad_col(&mut col);
+        self.columns.insert(col_no, col);
+        for row in &mut self.rows {
+            row.insert(col_no, Data::Number(0.0));
+        }
+    }
+
     pub fn move_cursor(&mut self, direction: Direction) {
         match direction {
             Direction::Up => {
@@ -225,6 +234,16 @@ impl Table {
             columns.push(cur_col);
         }
         return columns;
+    }
+
+    fn pad_col(&self, col: &mut Vec<Data>){
+        let largest_col = largest_list_in_2d_array(&self.columns);
+
+        if col.len() < largest_col {
+            for _ in col.len()..largest_col {
+                col.push(Data::Number(0.0));
+            }
+        }
     }
 
     fn pad_row(&self, row: &mut Vec<Data>){

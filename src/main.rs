@@ -33,6 +33,14 @@ fn handle_normal_mode(table: &mut Table, key: u8) {
             let pos = table.get_pos();
             table.add_row(pos.row + 1)
         },
+        b'c' => {
+            let pos = table.get_pos();
+            table.add_col(pos.col + 1);
+        }
+        b'C' => {
+            let pos = table.get_pos();
+            table.add_col(pos.col);
+        }
         b'w' => {
             let sheet = table.to_sheet();
             std::fs::write("./test", sheet).unwrap();

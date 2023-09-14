@@ -2,7 +2,7 @@ use crate::sheet_tokenizer;
 
 #[derive(Debug, Clone)]
 pub enum Data {
-    Number(f64),
+    Number(String),
     Equation(String),
     String(String),
 }
@@ -55,7 +55,7 @@ impl Table {
         self.pad_row(&mut row);
         self.rows.insert(row_no, row);
         for column in &mut self.columns {
-            column.insert(row_no, Data::Number(0.0));
+            column.insert(row_no, Data::Number("0".to_string()));
         }
     }
 
@@ -64,7 +64,7 @@ impl Table {
         self.pad_col(&mut col);
         self.columns.insert(col_no, col);
         for row in &mut self.rows {
-            row.insert(col_no, Data::Number(0.0));
+            row.insert(col_no, Data::Number("0".to_string()));
         }
     }
 
@@ -114,21 +114,24 @@ impl Table {
         self.set_value_at_position(position, Data::String("".to_string()));
     }
 
+    pub fn remove_last_char_in_cell(&mut self, position: &Position){
+        let data = self.get_data_at_pos(position);
+        match data {
+            Data::Equation(s) | Data::Number(s) | Data::String(s) => {
+                let mut new_str = s.to_owned();
+                new_str = new_str[0..new_str.len() - 1].to_string();
+                self.set_value_at_position(position, Data::Equation(new_str));
+            },
+        }
+    }
+
     pub fn append_char_to_cell(&mut self, position: &Position, char: char) {
         let data = self.get_data_at_pos(position);
         match data {
             Data::Number(n) => {
-                let char_digit: Result<f64, _> = char.to_string().parse();
-                if let Ok(digit) = char_digit {
-                    let mut new_n = n.to_owned();
-                    new_n *= 10.0;
-                    new_n += digit;
-                    self.set_value_at_position(position, Data::Number(new_n));
-                } else {
-                    let mut str = n.to_string();
-                    str += &char.to_string();
-                    self.set_value_at_position(position, Data::String(str))
-                }
+                let mut new_str = n.to_string();
+                new_str += &String::from(char);
+                self.set_value_at_position(position, Data::Number(new_str));
             }
             Data::Equation(s) => {
                 let mut new_str = s.to_owned();
@@ -226,7 +229,7 @@ impl Table {
             let mut cur_col: Vec<Data> = vec![];
             for row in rows {
                 if i >= row.len() {
-                    cur_col.push(Data::Number(0.0));
+                    cur_col.push(Data::Number("0".to_string()));
                 } else {
                     cur_col.push(row[i].clone());
                 }
@@ -241,7 +244,7 @@ impl Table {
 
         if col.len() < largest_col {
             for _ in col.len()..largest_col {
-                col.push(Data::Number(0.0));
+                col.push(Data::Number("0".to_string()));
             }
         }
     }
@@ -251,7 +254,7 @@ impl Table {
 
         if row.len() < largest_row {
             for _ in row.len()..largest_row {
-                row.push(Data::Number(0.0));
+                row.push(Data::Number("0".to_string()));
             }
         }
     }
@@ -262,7 +265,7 @@ impl Table {
         for row in rows {
             if row.len() < largest_row {
                 for _ in row.len()..largest_row {
-                    row.push(Data::Number(0.0));
+                    row.push(Data::Number("0".to_string()));
                 }
             }
         }
@@ -288,7 +291,7 @@ impl Table {
                         current_row.push(Data::Equation(text));
                     }
                     Some(T::Number(n)) => {
-                        current_row.push(Data::Number(n));
+                        current_row.push(Data::Number(n.to_string()));
                     }
                     None => break,
                     _ => continue,

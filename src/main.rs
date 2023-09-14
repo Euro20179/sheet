@@ -28,11 +28,11 @@ fn handle_normal_mode(table: &mut Table, key: u8) {
         b'R' => {
             let pos = table.get_pos();
             table.add_row(pos.row)
-        },
+        }
         b'r' => {
             let pos = table.get_pos();
             table.add_row(pos.row + 1)
-        },
+        }
         b'c' => {
             let pos = table.get_pos();
             table.add_col(pos.col + 1);
@@ -54,8 +54,13 @@ fn handle_normal_mode(table: &mut Table, key: u8) {
 }
 
 fn handle_insert_mode(table: &mut Table, key: u8) {
-    //TODO: if = is pressed convert the cell to an equation
-    table.append_char_to_cell(&table.get_pos(), key as char);
+    //backspace
+    if key == 127 {
+        table.remove_last_char_in_cell(&table.get_pos())
+    } else {
+        //TODO: if = is pressed convert the cell to an equation
+        table.append_char_to_cell(&table.get_pos(), key as char);
+    }
 }
 
 fn handle_mode(table: &mut Table, mode: &Mode, key: u8) {

@@ -1,5 +1,6 @@
 mod sheet_tokenizer;
 mod table;
+mod calculator;
 
 use std::io::{self, Read};
 
@@ -41,6 +42,14 @@ fn handle_normal_mode(table: &mut Table, key: u8) {
             let pos = table.get_pos();
             table.add_col(pos.col);
         }
+        b'd' => {
+            let row = table.get_pos().row;
+            table.remove_row(row);
+        },
+        b'D' => {
+            let col = table.get_pos().col;
+            table.remove_col(col);
+        }
         b'w' => {
             let sheet = table.to_sheet();
             std::fs::write("./test", sheet).unwrap();
@@ -57,6 +66,8 @@ fn handle_insert_mode(table: &mut Table, key: u8) {
     //backspace
     if key == 127 {
         table.remove_last_char_in_cell(&table.get_pos())
+    } else if key == 10 {
+
     } else {
         //TODO: if = is pressed convert the cell to an equation
         table.append_char_to_cell(&table.get_pos(), key as char);
@@ -71,6 +82,14 @@ fn handle_mode(table: &mut Table, mode: &Mode, key: u8) {
 }
 
 fn main() {
+    // let mut lexer = calculator::Lexer::new("(5 + 5) / 10".to_string());
+    // let toks = lexer.tokenize();
+    // println!("{:?}", toks);
+    // let mut parser = calculator::Parser::new(toks);
+    // let tree = parser.build_tree();
+    // println!("{:?}", tree);
+    // let int = calculator::Interpreter::new(tree);
+    // println!("{:?}", int.interpret());
     let mut args = std::env::args();
 
     let mut file_name: Option<String> = None;

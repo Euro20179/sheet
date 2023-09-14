@@ -1,4 +1,4 @@
-use crate::sheet_tokenizer;
+use crate::{calculator::{self, calculate}, sheet_tokenizer};
 
 #[derive(Debug, Clone)]
 pub enum Data {
@@ -68,6 +68,26 @@ impl Table {
         }
     }
 
+    pub fn remove_col(&mut self, col_no: usize) {
+        self.columns.remove(col_no);
+        for row in &mut self.rows {
+            row.remove(col_no);
+        }
+        if col_no == self.get_pos().col {
+            self.move_cursor(Direction::Left)
+        }
+    }
+
+    pub fn remove_row(&mut self, row_no: usize) {
+        self.rows.remove(row_no);
+        for col in &mut self.columns {
+            col.remove(row_no);
+        }
+        if row_no == self.get_pos().row {
+            self.move_cursor(Direction::Up)
+        }
+    }
+
     pub fn move_cursor(&mut self, direction: Direction) {
         match direction {
             Direction::Up => {
@@ -114,14 +134,14 @@ impl Table {
         self.set_value_at_position(position, Data::String("".to_string()));
     }
 
-    pub fn remove_last_char_in_cell(&mut self, position: &Position){
+    pub fn remove_last_char_in_cell(&mut self, position: &Position) {
         let data = self.get_data_at_pos(position);
         match data {
             Data::Equation(s) | Data::Number(s) | Data::String(s) => {
                 let mut new_str = s.to_owned();
                 new_str = new_str[0..new_str.len() - 1].to_string();
                 self.set_value_at_position(position, Data::Equation(new_str));
-            },
+            }
         }
     }
 
@@ -131,7 +151,11 @@ impl Table {
             Data::Number(n) => {
                 let mut new_str = n.to_string();
                 new_str += &String::from(char);
-                self.set_value_at_position(position, Data::Number(new_str));
+                if let Ok(_) = new_str.parse::<f64>() {
+                    self.set_value_at_position(position, Data::Number(new_str));
+                } else {
+                    self.set_value_at_position(position, Data::String(new_str));
+                }
             }
             Data::Equation(s) => {
                 let mut new_str = s.to_owned();
@@ -141,7 +165,11 @@ impl Table {
             Data::String(s) => {
                 let mut new_str = s.to_owned();
                 new_str += &char.to_string();
-                self.set_value_at_position(position, Data::String(new_str))
+                if let Ok(_) = new_str.parse::<f64>() {
+                    self.set_value_at_position(position, Data::Number(new_str));
+                } else {
+                    self.set_value_at_position(position, Data::String(new_str))
+                }
             }
         }
     }
@@ -156,11 +184,21 @@ impl Table {
         for row in &self.rows {
             let mut col_no = 0;
             for item in row {
+                if self.is_current_pos(row_no, col_no) {
+                    text += &String::from("\x1b[41m")
+                }
                 match item {
-                    Data::String(s) | Data::Equation(s) => {
-                        if self.is_current_pos(row_no, col_no) {
-                            text += &String::from("\x1b[41m")
-                        }
+                    Data::Equation(e) => {
+                        let expr = &e.clone();
+                        // text += &format!("{:<max_width$}", expr, max_width = max_width).to_owned();
+                        let new_text = match calculate(expr.to_owned()) {
+                            calculator::Result::String(s) => s.to_string(),
+                            calculator::Result::Number(n) => n.to_string()
+                        };
+
+                        text += &format!("{:<max_width$}", new_text, max_width = max_width).to_owned();
+                    }
+                    Data::String(s) => {
                         let new_text =
                             format!("{:<max_width$}", s, max_width = max_width).to_owned();
                         if new_text.len() > max_width && !self.is_current_pos(row_no, col_no) {
@@ -168,14 +206,8 @@ impl Table {
                         } else {
                             text += &new_text;
                         }
-                        if self.is_current_pos(row_no, col_no) {
-                            text += &String::from("\x1b[0m")
-                        }
                     }
                     Data::Number(n) => {
-                        if self.is_current_pos(row_no, col_no) {
-                            text += &String::from("\x1b[41m")
-                        }
                         let new_text =
                             format!("{:<max_width$}", n, max_width = max_width).to_owned();
                         if new_text.len() > max_width && !self.is_current_pos(row_no, col_no) {
@@ -183,10 +215,10 @@ impl Table {
                         } else {
                             text += &new_text;
                         }
-                        if self.is_current_pos(row_no, col_no) {
-                            text += &String::from("\x1b[0m")
-                        }
                     }
+                }
+                if self.is_current_pos(row_no, col_no) {
+                    text += &String::from("\x1b[0m")
                 }
                 col_no += 1;
             }
@@ -205,10 +237,14 @@ impl Table {
                 match item {
                     Data::String(t) => {
                         text += &format!("\"{}\"", t).to_string();
-                    },
+                    }
                     Data::Number(n) => {
-                        text += &format!("{}", n).to_string();
-                    },
+                        if let Ok(n) = n.parse::<f64>() {
+                            text += &format!("{}", n as f64).to_string();
+                        } else {
+                            panic!("{:?} Is not a float", n)
+                        }
+                    }
                     Data::Equation(t) => {
                         text += &format!("({})", t).to_string();
                     }
@@ -239,7 +275,7 @@ impl Table {
         return columns;
     }
 
-    fn pad_col(&self, col: &mut Vec<Data>){
+    fn pad_col(&self, col: &mut Vec<Data>) {
         let largest_col = largest_list_in_2d_array(&self.columns);
 
         if col.len() < largest_col {
@@ -249,7 +285,7 @@ impl Table {
         }
     }
 
-    fn pad_row(&self, row: &mut Vec<Data>){
+    fn pad_row(&self, row: &mut Vec<Data>) {
         let largest_row = largest_list_in_2d_array(&self.rows);
 
         if row.len() < largest_row {

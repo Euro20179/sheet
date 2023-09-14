@@ -89,6 +89,9 @@ fn parse_expr(lexer: &mut Lexer) -> String{
         if char == ')' {
             paren_count -= 1;
         }
+        else if char == '(' {
+            paren_count += 1;
+        }
         if paren_count == 0 {
             break;
         }

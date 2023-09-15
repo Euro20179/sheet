@@ -385,8 +385,20 @@ impl Table {
 
     pub fn display(&self, max_width: usize, do_equations: bool) {
         let mut text = format!("{:<max_width$}", " ", max_width = max_width);
-        let mut row_no = 0;
-        for i in 0..self.columns.len() {
+        let mut row_no = self.current_pos.row;
+        let row_view = 20;
+        let col_view = 5;
+        let end_row = if self.current_pos.row + row_view > self.rows.len() {
+            self.rows.len()
+        } else {
+            self.current_pos.row + row_view
+        };
+        let end_col = if self.current_pos.col + col_view > self.columns.len() {
+            self.columns.len()
+        } else {
+            self.current_pos.col + col_view
+        };
+        for i in self.current_pos.col..end_col {
             text += &format!(
                 "{:^max_width$}",
                 base_10_to_col_num(i),
@@ -394,14 +406,14 @@ impl Table {
             );
         }
         text += &String::from("\n");
-        for row in &self.rows {
-            let mut col_no = 0;
+        for row in &self.rows[self.current_pos.row..end_row] {
+            let mut col_no = self.current_pos.col;
             text += &format!(
                 "{:^max_width$}",
                 &(row_no + 1).to_string(),
                 max_width = max_width
             );
-            for item in row {
+            for item in &row[self.current_pos.col..end_col] {
                 if self.is_current_pos(row_no, col_no) {
                     text += &String::from("\x1b[41m");
                     text += &item.display(self, self.column_sizes[col_no], do_equations, true);

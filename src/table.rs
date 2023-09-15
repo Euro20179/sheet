@@ -1,6 +1,9 @@
 use std::collections::HashMap;
 
-use crate::{calculator::{self, calculate}, position_parser, sheet_tokenizer};
+use crate::{
+    calculator::{self, calculate},
+    position_parser, sheet_tokenizer,
+};
 
 fn base_26_to_10(n: String) -> usize {
     let mut ans = 0;
@@ -18,6 +21,111 @@ pub enum Data {
     Number(String),
     Equation(String),
     String(String),
+}
+
+fn handle_equation(
+    table: &Table,
+    expr: &str,
+    invalid_references: &mut Vec<(usize, usize)>,
+) -> Result<String, &'static str> {
+    let tokens = calculator::get_tokens(expr.to_string());
+    let mut map: HashMap<String, calculator::Result> = HashMap::new();
+
+    for tok in &tokens {
+        match &tok {
+            calculator::Token::Ident(s) => {
+                if s.chars().nth(0).unwrap_or('a') != '$' {
+                    continue;
+                }
+                let name = s[1..].to_string();
+                let pos = table.human_position_to_position(name);
+                if invalid_references.contains(&(pos.row, pos.col)) {
+                    return Err("Circular reference");
+                }
+                let val = table.get_value_at_position(&pos);
+                let res_value = match val {
+                    Data::Number(n) => {
+                        let num: f64 = n.parse().unwrap();
+                        calculator::Result::Number(num)
+                    }
+                    Data::String(a) => calculator::Result::String(a),
+                    Data::Equation(e) => {
+                        invalid_references.push((pos.row, pos.col));
+                        return handle_equation(table, &e, invalid_references);
+                    }
+                };
+                map.insert(s.to_string(), res_value);
+            }
+            _ => continue,
+        }
+    }
+
+    // text += &format!("{:<max_width$}", expr, max_width = max_width).to_owned();
+    let ans = match calculator::calcualte_from_tokens(tokens, map, table) {
+        calculator::Result::String(s) => s.to_string(),
+        calculator::Result::Number(n) => n.to_string(),
+        calculator::Result::Range(x, y) => format!("{:?}..{:?}", x, y),
+    };
+    return Ok(ans);
+}
+
+impl Data {
+    fn display_number(&self, n: &str, max_width: usize, is_hovered: bool) -> String {
+        let new_text = n.to_owned();
+        if n.len() > max_width && !is_hovered {
+            return new_text[0..max_width].to_string();
+        } else {
+            return format!("{:<max_width$}", new_text, max_width = max_width);
+        }
+    }
+
+    fn display_equation(
+        &self,
+        table: &Table,
+        e: &str,
+        max_width: usize,
+        do_equations: bool,
+        is_hovered: bool,
+    ) -> String {
+        if !do_equations {
+            return format!("{:<max_width$}", e, max_width = max_width);
+        }
+        let mut invalid_refs: Vec<(usize, usize)> = vec![];
+        let ans = handle_equation(table, e, &mut invalid_refs);
+        if let Ok(a) = ans {
+            if a.len() > max_width && !is_hovered {
+                return a[0..max_width].to_string();
+            }
+            return format!("{:<max_width$}", a, max_width = max_width);
+        } else {
+            return format!("{:<max_width$}", "Inf ref", max_width = max_width);
+        }
+    }
+
+    fn display_string(&self, s: &str, max_width: usize, is_hovered: bool) -> String {
+        let new_text = s.to_owned();
+        if new_text.len() > max_width && !is_hovered {
+            return new_text[0..max_width].to_string();
+        } else {
+            return format!("{:<max_width$}", new_text, max_width = max_width);
+        }
+    }
+
+    pub fn display(
+        &self,
+        table: &Table,
+        max_width: usize,
+        do_equations: bool,
+        is_hovered: bool,
+    ) -> String {
+        match self {
+            Data::Number(n) => self.display_number(n, max_width, is_hovered),
+            Data::String(s) => self.display_string(s, max_width, is_hovered),
+            Data::Equation(e) => {
+                self.display_equation(table, e, max_width, do_equations, is_hovered)
+            }
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -143,8 +251,18 @@ impl Table {
         self.rows[position.row][position.col] = value;
     }
 
-    pub fn get_value_at_position(&self, position: &Position) -> Data{
+    pub fn get_value_at_position(&self, position: &Position) -> Data {
         return self.rows[position.row][position.col].clone();
+    }
+
+    pub fn get_values_at_range(&self, start: &Position, end: &Position) -> Vec<Data> {
+        let mut items: Vec<Data> = vec![];
+        for row in start.row..end.row {
+            for col in start.col..end.col {
+                items.push(self.get_value_at_position(&Position { row, col }))
+            }
+        }
+        items
     }
 
     pub fn clear_cell(&mut self, position: &Position) {
@@ -195,8 +313,7 @@ impl Table {
         return row_no == self.current_pos.row && col_no == self.current_pos.col;
     }
 
-    fn human_position_to_position(&self, position: String) -> Position {
-
+    pub fn human_position_to_position(&self, position: String) -> Position {
         let toks = position_parser::Lexer::new(position).lex();
 
         let mut col_pos = 0;
@@ -206,11 +323,11 @@ impl Table {
             match tok {
                 position_parser::Token::Col(c) => {
                     col_pos = base_26_to_10(c);
-                },
+                }
                 position_parser::Token::Row(r) => {
                     row_pos = r - 1;
-                },
-                _ => todo!("Range not implemented")
+                }
+                _ => todo!("Range not implemented"),
             }
         }
 
@@ -218,11 +335,10 @@ impl Table {
             row: row_pos,
             col: col_pos,
         };
-
     }
 
     pub fn cursor_pos_is_empty(&self) -> bool {
-        if let Data::String(s) = &self.columns[self.current_pos.col][self.current_pos.row]{
+        if let Data::String(s) = &self.columns[self.current_pos.col][self.current_pos.row] {
             if s == "" {
                 return true;
             }
@@ -230,7 +346,7 @@ impl Table {
         return false;
     }
 
-    pub fn convert_cell(&mut self, pos: &Position, t: Data){
+    pub fn convert_cell(&mut self, pos: &Position, t: Data) {
         self.columns[pos.col][pos.row] = match t {
             Data::String(..) => Data::String(String::from("")),
             Data::Number(..) => Data::Number(String::from("0")),
@@ -245,69 +361,11 @@ impl Table {
             let mut col_no = 0;
             for item in row {
                 if self.is_current_pos(row_no, col_no) {
-                    text += &String::from("\x1b[41m")
-                }
-                match item {
-                    Data::Equation(e) => {
-                        if !do_equations {
-                            text += &format!("{:<max_width$}", e, max_width = max_width);
-                            continue;
-                        }
-                        let expr = &e.clone();
-                        let tokens = calculator::get_tokens(expr.to_string());
-                        let mut map: HashMap<String, calculator::Result> = HashMap::new();
-
-                        for tok in &tokens {
-                            match &tok {
-                                calculator::Token::Ident(s) => {
-                                    let pos = self.human_position_to_position(s.to_string());
-                                    let val = self.get_value_at_position(&pos);
-                                    let res_value = match val {
-                                        Data::Number(n) => {
-                                            let num: f64 = n.parse().unwrap();
-                                            calculator::Result::Number(num)
-                                        }
-                                        Data::String(a) => {
-                                            calculator::Result::String(a)
-                                        }
-                                        _ => calculator::Result::Number(0.0)
-                                    };
-                                    map.insert(s.to_string(), res_value);
-                                }
-                                _ => continue
-                            }
-                        }
-
-                        // text += &format!("{:<max_width$}", expr, max_width = max_width).to_owned();
-                        let new_text = match calculator::calcualte_from_tokens(tokens, map) {
-                            calculator::Result::String(s) => s.to_string(),
-                            calculator::Result::Number(n) => n.to_string(),
-                            calculator::Result::Range(x, y) => format!("{}..{}", x, y)
-                        };
-
-                        text += &format!("{:<max_width$}", new_text, max_width = max_width).to_owned();
-                    }
-                    Data::String(s) => {
-                        let new_text =
-                            format!("{:<max_width$}", s, max_width = max_width).to_owned();
-                        if new_text.len() > max_width && !self.is_current_pos(row_no, col_no) {
-                            text += &new_text[0..max_width];
-                        } else {
-                            text += &new_text;
-                        }
-                    }
-                    Data::Number(n) => {
-                        let new_text =
-                            format!("{:<max_width$}", n, max_width = max_width).to_owned();
-                        if new_text.len() > max_width && !self.is_current_pos(row_no, col_no) {
-                            text += &new_text[0..max_width];
-                        } else {
-                            text += &new_text;
-                        }
-                    }
-                }
-                if self.is_current_pos(row_no, col_no) {
+                    text += &String::from("\x1b[41m");
+                    text += &item.display(self, max_width, do_equations, true);
                     text += &String::from("\x1b[0m")
+                } else {
+                    text += &item.display(self, max_width, do_equations, false);
                 }
                 col_no += 1;
             }

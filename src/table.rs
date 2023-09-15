@@ -16,6 +16,30 @@ fn base_26_to_10(n: String) -> usize {
     return ans;
 }
 
+pub fn base_10_to_col_num(mut n: usize) -> String {
+    if n < 26 {
+        return String::from((n + 65) as u8 as char);
+    }
+
+    let mut ans = String::new();
+    let mut place = 0;
+    while n >= 26 {
+        if place > 0 {
+            ans += &String::from(((n % 26) + 64) as u8 as char);
+        } else {
+            ans += &String::from(((n % 26) + 65) as u8 as char);
+        }
+        n /= 26;
+        place += 1;
+    }
+    if place > 0 {
+        ans += &String::from(((n % 26) + 64) as u8 as char);
+    } else {
+        ans += &String::from(((n % 26) + 65) as u8 as char);
+    }
+    return ans.chars().rev().collect();
+}
+
 #[derive(Debug, Clone)]
 pub enum Data {
     Number(String),
@@ -29,39 +53,8 @@ fn handle_equation(
     _invalid_references: &mut Vec<(usize, usize)>,
 ) -> Result<String, &'static str> {
     let map: HashMap<String, calculator::Result> = HashMap::new();
-    // let tokens = calculator::get_tokens(expr.to_string());
-    //
-    // for tok in &tokens {
-    //     match &tok {
-    //         calculator::Token::Ident(s) => {
-    //             if s.chars().nth(0).unwrap_or('a') != '$' {
-    //                 continue;
-    //             }
-    //             let name = s[1..].to_string();
-    //             let pos = table.human_position_to_position(name);
-    //             if invalid_references.contains(&(pos.row, pos.col)) {
-    //                 return Err("Circular reference");
-    //             }
-    //             let val = table.get_value_at_position(&pos);
-    //             let res_value = match val {
-    //                 Data::Number(n) => {
-    //                     let num: f64 = n.parse().unwrap();
-    //                     calculator::Result::Number(num)
-    //                 }
-    //                 Data::String(a) => calculator::Result::String(a),
-    //                 Data::Equation(e) => {
-    //                     invalid_references.push((pos.row, pos.col));
-    //                     return handle_equation(table, &e, invalid_references);
-    //                 }
-    //             };
-    //             map.insert(s.to_string(), res_value);
-    //         }
-    //         _ => continue,
-    //     }
-    // }
 
-    // text += &format!("{:<max_width$}", expr, max_width = max_width).to_owned();
-    let ans = match calculate(expr.to_owned(), &map, table){
+    let ans = match calculate(expr.to_owned(), &map, table) {
         calculator::Result::String(s) => s.to_string(),
         calculator::Result::Number(n) => n.to_string(),
         calculator::Result::Range(x, y) => format!("{:?}..{:?}", x, y),
@@ -189,23 +182,23 @@ impl Table {
         }
     }
 
-    pub fn remove_col(&mut self, col_no: usize) {
+    pub fn remove_col(&mut self, col_no: usize, move_cursor: bool) {
         self.columns.remove(col_no);
         for row in &mut self.rows {
             row.remove(col_no);
         }
-        if col_no == self.get_pos().col {
-            self.move_cursor(Direction::Left)
+        if col_no >= self.columns.len(){
+            self.move_cursor(Direction::Left);
         }
     }
 
-    pub fn remove_row(&mut self, row_no: usize) {
+    pub fn remove_row(&mut self, row_no: usize, move_cursor: bool) {
         self.rows.remove(row_no);
         for col in &mut self.columns {
             col.remove(row_no);
         }
-        if row_no == self.get_pos().row {
-            self.move_cursor(Direction::Up)
+        if row_no >= self.rows.len(){
+            self.move_cursor(Direction::Up);
         }
     }
 
@@ -252,7 +245,14 @@ impl Table {
     }
 
     pub fn get_value_at_position(&self, position: &Position) -> Data {
-        return self.rows[position.row][position.col].clone();
+        if position.row >= self.rows.len() {
+            return Data::String("0".to_string());
+        }
+        let row = &self.rows[position.row];
+        if position.col >= row.len() {
+            return Data::String("0".to_string());
+        }
+        return row[position.col].clone();
     }
 
     pub fn get_values_at_range(&self, start: &Position, end: &Position) -> Vec<Data> {
@@ -354,10 +354,19 @@ impl Table {
     }
 
     pub fn display(&self, max_width: usize, do_equations: bool) {
-        let mut text = String::new();
+        let mut text = format!("{:<max_width$}", " ", max_width = max_width);
+        for i in 0..self.columns.len() {
+            text += &format!("{:^max_width$}", base_10_to_col_num(i), max_width = max_width);
+        }
+        text += &String::from("\n");
         let mut row_no = 0;
         for row in &self.rows {
             let mut col_no = 0;
+            text += &format!(
+                "{:^max_width$}",
+                &(row_no + 1).to_string(),
+                max_width = max_width
+            );
             for item in row {
                 if self.is_current_pos(row_no, col_no) {
                     text += &String::from("\x1b[41m");

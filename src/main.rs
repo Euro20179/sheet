@@ -12,7 +12,7 @@ use termios::{tcsetattr, Termios, ECHO, ICANON, TCSANOW};
 
 use table::Table;
 
-use crate::table::Direction;
+use crate::table::{Direction, base_10_to_col_num};
 
 #[derive(Eq, PartialEq)]
 enum Mode {
@@ -48,11 +48,11 @@ fn handle_normal_mode(table: &mut Table, key: u8) {
         }
         b'd' => {
             let row = table.get_pos().row;
-            table.remove_row(row);
+            table.remove_row(row, false);
         }
         b'D' => {
             let col = table.get_pos().col;
-            table.remove_col(col);
+            table.remove_col(col, false);
         }
         b'w' => {
             let sheet = table.to_sheet();
@@ -75,7 +75,6 @@ fn handle_insert_mode(table: &mut Table, key: u8) {
         if key == b'=' && table.cursor_pos_is_empty() {
             table.convert_cell(&table.get_pos(), table::Data::Equation(String::new()))
         } else {
-            //TODO: if = is pressed convert the cell to an equation
             table.append_char_to_cell(&table.get_pos(), key as char);
         }
     }
@@ -89,7 +88,7 @@ fn handle_mode(table: &mut Table, mode: &Mode, key: u8) {
 }
 
 fn main() {
-    // let mut lexer = calculator::Lexer::new("sum($a1:$b1)".to_string());
+    // let mut lexer = calculator::Lexer::new("sum($a1:$b1)/2".to_string());
     // let toks = lexer.tokenize();
     // println!("{:?}", toks);
     // let mut parser = calculator::Parser::new(toks);
@@ -109,6 +108,16 @@ fn main() {
     //         ])
     //     )
     // );
+
+    // let table = Table::from_tokens(vec![
+    //     sheet_tokenizer::Token::LBracket,
+    //     sheet_tokenizer::Token::Number(0.3),
+    //     sheet_tokenizer::Token::RBracket
+    // ]);
+    //
+    // println!("{}", base_10_to_col_num(10));
+    //
+    // table.display(10, true);
 
     let mut args = std::env::args();
 

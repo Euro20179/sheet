@@ -1,7 +1,7 @@
-mod sheet_tokenizer;
-mod table;
 mod calculator;
 mod position_parser;
+mod sheet_tokenizer;
+mod table;
 
 use std::io::{self, Read};
 
@@ -46,7 +46,7 @@ fn handle_normal_mode(table: &mut Table, key: u8) {
         b'd' => {
             let row = table.get_pos().row;
             table.remove_row(row);
-        },
+        }
         b'D' => {
             let col = table.get_pos().col;
             table.remove_col(col);
@@ -68,10 +68,13 @@ fn handle_insert_mode(table: &mut Table, key: u8) {
     if key == 127 {
         table.remove_last_char_in_cell(&table.get_pos())
     } else if key == 10 {
-
     } else {
-        //TODO: if = is pressed convert the cell to an equation
-        table.append_char_to_cell(&table.get_pos(), key as char);
+        if key == b'=' && table.cursor_pos_is_empty() {
+            table.convert_cell(&table.get_pos(), table::Data::Equation(String::new()))
+        } else {
+            //TODO: if = is pressed convert the cell to an equation
+            table.append_char_to_cell(&table.get_pos(), key as char);
+        }
     }
 }
 
@@ -124,7 +127,11 @@ fn main() {
     let mut mode = Mode::Normal;
     loop {
         print!("\x1b[2J\x1b[0H");
-        table.display(10);
+        let do_equations = match mode {
+            Mode::Insert => false,
+            _ => true
+        };
+        table.display(10, do_equations);
         let mut buf = [0; 1];
         reader.read_exact(&mut buf).unwrap();
         let ch = buf[0];

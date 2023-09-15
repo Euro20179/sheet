@@ -221,7 +221,24 @@ impl Table {
 
     }
 
-    pub fn display(&self, max_width: usize) {
+    pub fn cursor_pos_is_empty(&self) -> bool {
+        if let Data::String(s) = &self.columns[self.current_pos.col][self.current_pos.row]{
+            if s == "" {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    pub fn convert_cell(&mut self, pos: &Position, t: Data){
+        self.columns[pos.col][pos.row] = match t {
+            Data::String(..) => Data::String(String::from("")),
+            Data::Number(..) => Data::Number(String::from("0")),
+            Data::Equation(..) => Data::Equation(String::from("")),
+        }
+    }
+
+    pub fn display(&self, max_width: usize, do_equations: bool) {
         let mut text = String::new();
         let mut row_no = 0;
         for row in &self.rows {
@@ -232,6 +249,10 @@ impl Table {
                 }
                 match item {
                     Data::Equation(e) => {
+                        if !do_equations {
+                            text += &format!("{:<max_width$}", e, max_width = max_width);
+                            continue;
+                        }
                         let expr = &e.clone();
                         let tokens = calculator::get_tokens(expr.to_string());
                         let mut map: HashMap<String, calculator::Result> = HashMap::new();
@@ -240,7 +261,6 @@ impl Table {
                             match &tok {
                                 calculator::Token::Ident(s) => {
                                     let pos = self.human_position_to_position(s.to_string());
-                                    eprintln!("Pos: {:?}", pos);
                                     let val = self.get_value_at_position(&pos);
                                     let res_value = match val {
                                         Data::Number(n) => {

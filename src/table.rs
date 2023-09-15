@@ -383,22 +383,29 @@ impl Table {
         }
     }
 
+    fn find_displayable_rows(&self, rows_to_view: usize) -> [usize; 2]{
+        if self.current_pos.row + rows_to_view > self.rows.len() {
+            [self.current_pos.row, self.rows.len()]
+        }
+        else {
+            [self.current_pos.row, self.current_pos.row + rows_to_view]
+        }
+    }
+
+    fn find_displayable_cols(&self, cols_to_view: usize) -> [usize; 2] {
+        if self.current_pos.col + cols_to_view > self.columns.len() {
+            [self.current_pos.col, self.columns.len()]
+        } else {
+            [self.current_pos.col, self.current_pos.col + cols_to_view]
+        }
+    }
+
     pub fn display(&self, max_width: usize, do_equations: bool) {
         let mut text = format!("{:<max_width$}", " ", max_width = max_width);
         let mut row_no = self.current_pos.row;
-        let row_view = 20;
-        let col_view = 5;
-        let end_row = if self.current_pos.row + row_view > self.rows.len() {
-            self.rows.len()
-        } else {
-            self.current_pos.row + row_view
-        };
-        let end_col = if self.current_pos.col + col_view > self.columns.len() {
-            self.columns.len()
-        } else {
-            self.current_pos.col + col_view
-        };
-        for i in self.current_pos.col..end_col {
+        let row_slice = self.find_displayable_rows(20);
+        let col_slice = self.find_displayable_cols(5);
+        for i in col_slice[0]..col_slice[1] {
             text += &format!(
                 "{:^max_width$}",
                 base_10_to_col_num(i),
@@ -406,14 +413,14 @@ impl Table {
             );
         }
         text += &String::from("\n");
-        for row in &self.rows[self.current_pos.row..end_row] {
+        for row in &self.rows[row_slice[0]..row_slice[1]] {
             let mut col_no = self.current_pos.col;
             text += &format!(
                 "{:^max_width$}",
                 &(row_no + 1).to_string(),
                 max_width = max_width
             );
-            for item in &row[self.current_pos.col..end_col] {
+            for item in &row[col_slice[0]..col_slice[1]] {
                 if self.is_current_pos(row_no, col_no) {
                     text += &String::from("\x1b[41m");
                     text += &item.display(self, self.column_sizes[col_no], do_equations, true);

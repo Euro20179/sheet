@@ -228,6 +228,8 @@ fn main() {
 
     let mut reader = std::io::stdin();
 
+
+
     loop {
         print!("\x1b[2J\x1b[0H");
         let do_equations = match program.mode {

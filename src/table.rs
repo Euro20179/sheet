@@ -385,6 +385,7 @@ impl Table {
 
     pub fn display(&self, max_width: usize, do_equations: bool) {
         let mut text = format!("{:<max_width$}", " ", max_width = max_width);
+        let mut row_no = 0;
         for i in 0..self.columns.len() {
             text += &format!(
                 "{:^max_width$}",
@@ -393,7 +394,6 @@ impl Table {
             );
         }
         text += &String::from("\n");
-        let mut row_no = 0;
         for row in &self.rows {
             let mut col_no = 0;
             text += &format!(
@@ -529,13 +529,17 @@ impl Table {
             }
         }
 
-        let column_sizes: Vec<usize> = rows.remove(0).into_iter().map(|d|{
-            if let Data::Number(n) = d {
-                let size: usize = n.parse().unwrap();
-                return size;
-            }
-            return 10;
-        }).collect();
+        let column_sizes: Vec<usize> = rows
+            .remove(0)
+            .into_iter()
+            .map(|d| {
+                if let Data::Number(n) = d {
+                    let size: usize = n.parse().unwrap();
+                    return size;
+                }
+                return 10;
+            })
+            .collect();
 
         let columns = Table::build_columns_from_rows(&rows);
         Table::pad_rows(&mut rows);
@@ -543,7 +547,7 @@ impl Table {
             rows,
             columns,
             current_pos: Position { row: 0, col: 0 },
-            column_sizes
+            column_sizes,
         };
     }
 }

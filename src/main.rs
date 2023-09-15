@@ -30,6 +30,9 @@ struct Program<'a> {
 
 fn handle_normal_mode(program: &mut Program, key: KeySequence) {
     let table = &mut program.table;
+    //TODO: undo mode
+    //table could keep track of previous instances of rows/columns
+    //when u is pressed it restores the previous instance of rows/columns
     match key.action {
         'i' => program.mode = Mode::Insert,
         's' => {
@@ -225,7 +228,9 @@ fn main() {
             _ => true,
         };
         program.table.display(10, do_equations);
+        //TODO: detect multi-char keys eg: ^[A
         let key_sequence = get_key(&program, &mut reader);
+        //TODO: add detection for if the file is saved
         if key_sequence.action == 'q' && program.mode == Mode::Normal {
             break;
         } else {

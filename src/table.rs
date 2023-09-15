@@ -271,18 +271,37 @@ impl Table {
 
     pub fn remove_last_char_in_cell(&mut self, position: &Position) {
         let data = self.get_data_at_pos(position);
-        match data {
+        let new_value = match data {
             Data::Equation(s, c) => {
                 let mut new_str = s.to_owned();
-                new_str = new_str[0..new_str.len() - 1].to_string();
-                self.set_value_at_position(position, Data::Equation(new_str, c.to_owned()));
+                if new_str.len() == 0 {
+                    Data::Equation(new_str, c.to_owned())
+                } else {
+                    new_str = new_str[0..new_str.len() - 1].to_string();
+                    Data::Equation(new_str, c.to_owned())
+                }
             }
-            Data::Number(s) | Data::String(s) => {
+            Data::String(s) => {
                 let mut new_str = s.to_owned();
-                new_str = new_str[0..new_str.len() - 1].to_string();
-                self.set_value_at_position(position, Data::Equation(new_str, None));
+                if new_str.len() == 0 {
+                    Data::String("".to_string())
+                } else {
+                    new_str = new_str[0..new_str.len() - 1].to_string();
+                    Data::String(new_str)
+                }
+
             }
-        }
+            Data::Number(s) => {
+                let mut new_str = s.to_owned();
+                if new_str.len() == 0 {
+                        Data::String("".to_string())
+                } else {
+                    new_str = new_str[0..new_str.len() - 1].to_string();
+                    Data::Number(new_str)
+                }
+            }
+        };
+        self.set_value_at_position(position, new_value);
     }
 
     pub fn append_char_to_cell(&mut self, position: &Position, char: char) {

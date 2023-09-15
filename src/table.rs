@@ -132,6 +132,7 @@ pub struct Table {
     rows: Vec<Vec<Data>>,
     columns: Vec<Vec<Data>>,
     current_pos: Position,
+    column_sizes: Vec<usize>,
 }
 
 pub enum Direction {
@@ -175,6 +176,7 @@ impl Table {
 
     pub fn add_col(&mut self, col_no: usize) {
         let mut col: Vec<Data> = vec![];
+        self.column_sizes.insert(col_no, 10);
         self.pad_col(&mut col);
         self.columns.insert(col_no, col);
         for row in &mut self.rows {
@@ -183,6 +185,7 @@ impl Table {
     }
 
     pub fn remove_col(&mut self, col_no: usize) {
+        self.column_sizes.remove(col_no);
         self.columns.remove(col_no);
         for row in &mut self.rows {
             row.remove(col_no);
@@ -269,6 +272,10 @@ impl Table {
         self.set_value_at_position(position, Data::String("".to_string()));
     }
 
+    pub fn cursor_at_bottom(&self) -> bool {
+        return self.get_pos().row == self.rows.len() - 1;
+    }
+
     pub fn remove_last_char_in_cell(&mut self, position: &Position) {
         let data = self.get_data_at_pos(position);
         let new_value = match data {
@@ -289,12 +296,11 @@ impl Table {
                     new_str = new_str[0..new_str.len() - 1].to_string();
                     Data::String(new_str)
                 }
-
             }
             Data::Number(s) => {
                 let mut new_str = s.to_owned();
                 if new_str.len() == 0 {
-                        Data::String("".to_string())
+                    Data::String("".to_string())
                 } else {
                     new_str = new_str[0..new_str.len() - 1].to_string();
                     Data::Number(new_str)
@@ -383,7 +389,7 @@ impl Table {
             text += &format!(
                 "{:^max_width$}",
                 base_10_to_col_num(i),
-                max_width = max_width
+                max_width = self.column_sizes[i]
             );
         }
         text += &String::from("\n");
@@ -398,10 +404,10 @@ impl Table {
             for item in row {
                 if self.is_current_pos(row_no, col_no) {
                     text += &String::from("\x1b[41m");
-                    text += &item.display(self, max_width, do_equations, true);
+                    text += &item.display(self, self.column_sizes[col_no], do_equations, true);
                     text += &String::from("\x1b[0m")
                 } else {
-                    text += &item.display(self, max_width, do_equations, false);
+                    text += &item.display(self, self.column_sizes[col_no], do_equations, false);
                 }
                 col_no += 1;
             }
@@ -412,7 +418,12 @@ impl Table {
     }
 
     pub fn to_sheet(&self) -> String {
-        let mut text = String::new();
+        let mut text = "[".to_string();
+
+        for size in &self.column_sizes {
+            text += &(size.to_string() + &String::from(","));
+        }
+        text += &"]\n".to_string();
 
         for row in &self.rows {
             text += &String::from("[");
@@ -518,12 +529,21 @@ impl Table {
             }
         }
 
+        let column_sizes: Vec<usize> = rows.remove(0).into_iter().map(|d|{
+            if let Data::Number(n) = d {
+                let size: usize = n.parse().unwrap();
+                return size;
+            }
+            return 10;
+        }).collect();
+
         let columns = Table::build_columns_from_rows(&rows);
         Table::pad_rows(&mut rows);
         return Table {
             rows,
             columns,
             current_pos: Position { row: 0, col: 0 },
+            column_sizes
         };
     }
 }

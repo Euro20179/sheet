@@ -41,6 +41,9 @@ fn handle_normal_mode(program: &mut Program, key: KeySequence) {
         }
         'j' => {
             for _ in 0..key.count {
+                if table.cursor_at_bottom() {
+                    table.add_row(table.get_pos().row + 1);
+                }
                 table.move_cursor(Direction::Down);
             }
         }
@@ -73,6 +76,7 @@ fn handle_normal_mode(program: &mut Program, key: KeySequence) {
             let pos = table.get_pos();
             for _ in 0..key.count {
                 table.add_row(pos.row + 1);
+                table.move_cursor(Direction::Down);
             }
         }
         'c' => {
@@ -114,6 +118,9 @@ fn handle_insert_mode(program: &mut Program, key: KeySequence) {
         //backspace
         127 => table.remove_last_char_in_cell(&table.get_pos()),
         10 => program.mode = Mode::Normal,
+        b'\t' => {
+            table.move_cursor(Direction::Right)
+        }
         b'=' => {
             if table.cursor_pos_is_empty() {
                 table.convert_cell(&table.get_pos(), table::Data::Equation(String::new(), None))

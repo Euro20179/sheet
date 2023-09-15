@@ -43,7 +43,7 @@ pub fn base_10_to_col_num(mut n: usize) -> String {
 #[derive(Debug, Clone)]
 pub enum Data {
     Number(String),
-    Equation(String),
+    Equation(String, Option<calculator::Result>),
     String(String),
 }
 
@@ -114,7 +114,7 @@ impl Data {
         match self {
             Data::Number(n) => self.display_number(n, max_width, is_hovered),
             Data::String(s) => self.display_string(s, max_width, is_hovered),
-            Data::Equation(e) => {
+            Data::Equation(e, ..) => {
                 self.display_equation(table, e, max_width, do_equations, is_hovered)
             }
         }
@@ -182,22 +182,22 @@ impl Table {
         }
     }
 
-    pub fn remove_col(&mut self, col_no: usize, move_cursor: bool) {
+    pub fn remove_col(&mut self, col_no: usize) {
         self.columns.remove(col_no);
         for row in &mut self.rows {
             row.remove(col_no);
         }
-        if col_no >= self.columns.len(){
+        if col_no >= self.columns.len() {
             self.move_cursor(Direction::Left);
         }
     }
 
-    pub fn remove_row(&mut self, row_no: usize, move_cursor: bool) {
+    pub fn remove_row(&mut self, row_no: usize) {
         self.rows.remove(row_no);
         for col in &mut self.columns {
             col.remove(row_no);
         }
-        if row_no >= self.rows.len(){
+        if row_no >= self.rows.len() {
             self.move_cursor(Direction::Up);
         }
     }
@@ -272,10 +272,15 @@ impl Table {
     pub fn remove_last_char_in_cell(&mut self, position: &Position) {
         let data = self.get_data_at_pos(position);
         match data {
-            Data::Equation(s) | Data::Number(s) | Data::String(s) => {
+            Data::Equation(s, c) => {
                 let mut new_str = s.to_owned();
                 new_str = new_str[0..new_str.len() - 1].to_string();
-                self.set_value_at_position(position, Data::Equation(new_str));
+                self.set_value_at_position(position, Data::Equation(new_str, c.to_owned()));
+            }
+            Data::Number(s) | Data::String(s) => {
+                let mut new_str = s.to_owned();
+                new_str = new_str[0..new_str.len() - 1].to_string();
+                self.set_value_at_position(position, Data::Equation(new_str, None));
             }
         }
     }
@@ -292,10 +297,10 @@ impl Table {
                     self.set_value_at_position(position, Data::String(new_str));
                 }
             }
-            Data::Equation(s) => {
+            Data::Equation(s, c) => {
                 let mut new_str = s.to_owned();
                 new_str += &char.to_string();
-                self.set_value_at_position(position, Data::Equation(new_str))
+                self.set_value_at_position(position, Data::Equation(new_str, c.to_owned()))
             }
             Data::String(s) => {
                 let mut new_str = s.to_owned();
@@ -349,14 +354,18 @@ impl Table {
         self.columns[pos.col][pos.row] = match t {
             Data::String(..) => Data::String(String::from("")),
             Data::Number(..) => Data::Number(String::from("0")),
-            Data::Equation(..) => Data::Equation(String::from("")),
+            Data::Equation(..) => Data::Equation(String::from(""), None),
         }
     }
 
     pub fn display(&self, max_width: usize, do_equations: bool) {
         let mut text = format!("{:<max_width$}", " ", max_width = max_width);
         for i in 0..self.columns.len() {
-            text += &format!("{:^max_width$}", base_10_to_col_num(i), max_width = max_width);
+            text += &format!(
+                "{:^max_width$}",
+                base_10_to_col_num(i),
+                max_width = max_width
+            );
         }
         text += &String::from("\n");
         let mut row_no = 0;
@@ -400,7 +409,7 @@ impl Table {
                             panic!("{:?} Is not a float", n)
                         }
                     }
-                    Data::Equation(t) => {
+                    Data::Equation(t, ..) => {
                         text += &format!("({})", t).to_string();
                     }
                 }
@@ -479,7 +488,7 @@ impl Table {
                         current_row.push(Data::String(text));
                     }
                     Some(T::Expr(text)) => {
-                        current_row.push(Data::Equation(text));
+                        current_row.push(Data::Equation(text, None));
                     }
                     Some(T::Number(n)) => {
                         current_row.push(Data::Number(n.to_string()));

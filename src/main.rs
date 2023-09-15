@@ -3,16 +3,13 @@ mod position_parser;
 mod sheet_tokenizer;
 mod table;
 
-use std::{
-    collections::HashMap,
-    io::{self, Read},
-};
+use std::io::Read;
 
 use termios::{tcsetattr, Termios, ECHO, ICANON, TCSANOW};
 
 use table::Table;
 
-use crate::table::{Direction, base_10_to_col_num};
+use crate::table::Direction;
 
 #[derive(Eq, PartialEq)]
 enum Mode {
@@ -20,8 +17,20 @@ enum Mode {
     Insert,
 }
 
-fn handle_normal_mode(table: &mut Table, key: u8) {
+struct Program<'a> {
+    mode: Mode,
+    file_path: String,
+    table: &'a mut Table
+}
+
+fn handle_normal_mode(program: &mut Program, key: u8) {
+    let table = &mut program.table;
     match key {
+        b'i' => program.mode = Mode::Insert,
+        b's' => {
+            table.clear_cell(&table.get_pos());
+            program.mode = Mode::Insert
+        }
         b'j' => table.move_cursor(Direction::Down),
         b'k' => table.move_cursor(Direction::Up),
         b'l' => table.move_cursor(Direction::Right),
@@ -48,15 +57,15 @@ fn handle_normal_mode(table: &mut Table, key: u8) {
         }
         b'd' => {
             let row = table.get_pos().row;
-            table.remove_row(row, false);
+            table.remove_row(row);
         }
         b'D' => {
             let col = table.get_pos().col;
-            table.remove_col(col, false);
+            table.remove_col(col);
         }
         b'w' => {
             let sheet = table.to_sheet();
-            std::fs::write("./test", sheet).unwrap();
+            std::fs::write(&program.file_path, sheet).unwrap();
         }
         b'x' => {
             let pos = table.get_pos();
@@ -66,24 +75,32 @@ fn handle_normal_mode(table: &mut Table, key: u8) {
     }
 }
 
-fn handle_insert_mode(table: &mut Table, key: u8) {
-    //backspace
-    if key == 127 {
-        table.remove_last_char_in_cell(&table.get_pos())
-    } else if key == 10 {
-    } else {
-        if key == b'=' && table.cursor_pos_is_empty() {
-            table.convert_cell(&table.get_pos(), table::Data::Equation(String::new()))
-        } else {
-            table.append_char_to_cell(&table.get_pos(), key as char);
-        }
+fn handle_insert_mode(program: &mut Program, key: u8) {
+    let table = &mut program.table;
+    eprintln!("{}", key);
+    match key {
+        //backspace
+        127 => table.remove_last_char_in_cell(&table.get_pos()),
+        10 => {
+            program.mode = Mode::Normal
+        }, 
+        b'=' => {
+            if table.cursor_pos_is_empty() {
+                table.convert_cell(&table.get_pos(), table::Data::Equation(String::new(), None))
+            }
+            else {
+                table.append_char_to_cell(&table.get_pos(), key as char);
+            }
+        },
+        _ => table.append_char_to_cell(&table.get_pos(), key as char)
+
     }
 }
 
-fn handle_mode(table: &mut Table, mode: &Mode, key: u8) {
-    match mode {
-        Mode::Normal => handle_normal_mode(table, key),
-        Mode::Insert => handle_insert_mode(table, key),
+fn handle_mode(program: &mut Program, key: u8) {
+    match program.mode {
+        Mode::Normal => handle_normal_mode(program, key),
+        Mode::Insert => handle_insert_mode(program, key),
     }
 }
 
@@ -138,7 +155,7 @@ fn main() {
     new_termios.c_lflag &= !(ICANON | ECHO);
     tcsetattr(stdin, TCSANOW, &mut new_termios).unwrap();
 
-    let data = std::fs::read_to_string(fp);
+    let data = std::fs::read_to_string(&fp);
     let mut text = String::from("[]");
     if let Ok(t) = data {
         text = t;
@@ -147,29 +164,27 @@ fn main() {
 
     let mut table = Table::from_tokens(toks);
 
-    let mut reader = io::stdin();
-    let mut mode = Mode::Normal;
+    let mut program = Program {
+        table: &mut table,
+        file_path: fp,
+        mode: Mode::Normal
+    };
+
+    let mut reader = std::io::stdin();
     loop {
         print!("\x1b[2J\x1b[0H");
-        let do_equations = match mode {
+        let do_equations = match program.mode {
             Mode::Insert => false,
             _ => true
         };
-        table.display(10, do_equations);
+        program.table.display(10, do_equations);
         let mut buf = [0; 1];
         reader.read_exact(&mut buf).unwrap();
         let ch = buf[0];
-        if ch == b'\'' && mode == Mode::Insert {
-            mode = Mode::Normal;
-        } else if ch == b'q' && mode == Mode::Normal {
+        if ch == b'q' && program.mode == Mode::Normal {
             break;
-        } else if ch == b'i' && mode == Mode::Normal {
-            mode = Mode::Insert;
-        } else if ch == b's' && mode == Mode::Normal {
-            table.clear_cell(&table.get_pos());
-            mode = Mode::Insert;
         } else {
-            handle_mode(&mut table, &mode, ch);
+            handle_mode(&mut program, ch);
         }
     }
 

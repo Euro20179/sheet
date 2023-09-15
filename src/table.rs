@@ -1,4 +1,17 @@
-use crate::{calculator::{self, calculate}, sheet_tokenizer};
+use std::collections::HashMap;
+
+use crate::{calculator::{self, calculate}, position_parser, sheet_tokenizer};
+
+fn base_26_to_10(n: String) -> usize {
+    let mut ans = 0;
+    let reversed = n.chars().rev().collect::<String>();
+    let base: usize = 26;
+    for i in 0..reversed.len() {
+        let ch = reversed.chars().nth(i).unwrap() as u8;
+        ans += ((ch - 97) as usize) * (base.pow(i as u32));
+    }
+    return ans;
+}
 
 #[derive(Debug, Clone)]
 pub enum Data {
@@ -130,6 +143,10 @@ impl Table {
         self.rows[position.row][position.col] = value;
     }
 
+    pub fn get_value_at_position(&self, position: &Position) -> Data{
+        return self.rows[position.row][position.col].clone();
+    }
+
     pub fn clear_cell(&mut self, position: &Position) {
         self.set_value_at_position(position, Data::String("".to_string()));
     }
@@ -178,6 +195,32 @@ impl Table {
         return row_no == self.current_pos.row && col_no == self.current_pos.col;
     }
 
+    fn human_position_to_position(&self, position: String) -> Position {
+
+        let toks = position_parser::Lexer::new(position).lex();
+
+        let mut col_pos = 0;
+        let mut row_pos = 0;
+
+        for tok in toks {
+            match tok {
+                position_parser::Token::Col(c) => {
+                    col_pos = base_26_to_10(c);
+                },
+                position_parser::Token::Row(r) => {
+                    row_pos = r - 1;
+                },
+                _ => todo!("Range not implemented")
+            }
+        }
+
+        return Position {
+            row: row_pos,
+            col: col_pos,
+        };
+
+    }
+
     pub fn display(&self, max_width: usize) {
         let mut text = String::new();
         let mut row_no = 0;
@@ -190,10 +233,36 @@ impl Table {
                 match item {
                     Data::Equation(e) => {
                         let expr = &e.clone();
+                        let tokens = calculator::get_tokens(expr.to_string());
+                        let mut map: HashMap<String, calculator::Result> = HashMap::new();
+
+                        for tok in &tokens {
+                            match &tok {
+                                calculator::Token::Ident(s) => {
+                                    let pos = self.human_position_to_position(s.to_string());
+                                    eprintln!("Pos: {:?}", pos);
+                                    let val = self.get_value_at_position(&pos);
+                                    let res_value = match val {
+                                        Data::Number(n) => {
+                                            let num: f64 = n.parse().unwrap();
+                                            calculator::Result::Number(num)
+                                        }
+                                        Data::String(a) => {
+                                            calculator::Result::String(a)
+                                        }
+                                        _ => calculator::Result::Number(0.0)
+                                    };
+                                    map.insert(s.to_string(), res_value);
+                                }
+                                _ => continue
+                            }
+                        }
+
                         // text += &format!("{:<max_width$}", expr, max_width = max_width).to_owned();
-                        let new_text = match calculate(expr.to_owned()) {
+                        let new_text = match calculator::calcualte_from_tokens(tokens, map) {
                             calculator::Result::String(s) => s.to_string(),
-                            calculator::Result::Number(n) => n.to_string()
+                            calculator::Result::Number(n) => n.to_string(),
+                            calculator::Result::Range(x, y) => format!("{}..{}", x, y)
                         };
 
                         text += &format!("{:<max_width$}", new_text, max_width = max_width).to_owned();

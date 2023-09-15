@@ -1,6 +1,7 @@
 mod sheet_tokenizer;
 mod table;
 mod calculator;
+mod position_parser;
 
 use std::io::{self, Read};
 
@@ -82,7 +83,7 @@ fn handle_mode(table: &mut Table, mode: &Mode, key: u8) {
 }
 
 fn main() {
-    // let mut lexer = calculator::Lexer::new("(5 + 5) / 10".to_string());
+    // let mut lexer = calculator::Lexer::new("$a1:$a4".to_string());
     // let toks = lexer.tokenize();
     // println!("{:?}", toks);
     // let mut parser = calculator::Parser::new(toks);
@@ -90,6 +91,7 @@ fn main() {
     // println!("{:?}", tree);
     // let int = calculator::Interpreter::new(tree);
     // println!("{:?}", int.interpret());
+
     let mut args = std::env::args();
 
     let mut file_name: Option<String> = None;

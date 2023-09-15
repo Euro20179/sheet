@@ -26,42 +26,42 @@ pub enum Data {
 fn handle_equation(
     table: &Table,
     expr: &str,
-    invalid_references: &mut Vec<(usize, usize)>,
+    _invalid_references: &mut Vec<(usize, usize)>,
 ) -> Result<String, &'static str> {
-    let tokens = calculator::get_tokens(expr.to_string());
-    let mut map: HashMap<String, calculator::Result> = HashMap::new();
-
-    for tok in &tokens {
-        match &tok {
-            calculator::Token::Ident(s) => {
-                if s.chars().nth(0).unwrap_or('a') != '$' {
-                    continue;
-                }
-                let name = s[1..].to_string();
-                let pos = table.human_position_to_position(name);
-                if invalid_references.contains(&(pos.row, pos.col)) {
-                    return Err("Circular reference");
-                }
-                let val = table.get_value_at_position(&pos);
-                let res_value = match val {
-                    Data::Number(n) => {
-                        let num: f64 = n.parse().unwrap();
-                        calculator::Result::Number(num)
-                    }
-                    Data::String(a) => calculator::Result::String(a),
-                    Data::Equation(e) => {
-                        invalid_references.push((pos.row, pos.col));
-                        return handle_equation(table, &e, invalid_references);
-                    }
-                };
-                map.insert(s.to_string(), res_value);
-            }
-            _ => continue,
-        }
-    }
+    let map: HashMap<String, calculator::Result> = HashMap::new();
+    // let tokens = calculator::get_tokens(expr.to_string());
+    //
+    // for tok in &tokens {
+    //     match &tok {
+    //         calculator::Token::Ident(s) => {
+    //             if s.chars().nth(0).unwrap_or('a') != '$' {
+    //                 continue;
+    //             }
+    //             let name = s[1..].to_string();
+    //             let pos = table.human_position_to_position(name);
+    //             if invalid_references.contains(&(pos.row, pos.col)) {
+    //                 return Err("Circular reference");
+    //             }
+    //             let val = table.get_value_at_position(&pos);
+    //             let res_value = match val {
+    //                 Data::Number(n) => {
+    //                     let num: f64 = n.parse().unwrap();
+    //                     calculator::Result::Number(num)
+    //                 }
+    //                 Data::String(a) => calculator::Result::String(a),
+    //                 Data::Equation(e) => {
+    //                     invalid_references.push((pos.row, pos.col));
+    //                     return handle_equation(table, &e, invalid_references);
+    //                 }
+    //             };
+    //             map.insert(s.to_string(), res_value);
+    //         }
+    //         _ => continue,
+    //     }
+    // }
 
     // text += &format!("{:<max_width$}", expr, max_width = max_width).to_owned();
-    let ans = match calculator::calcualte_from_tokens(tokens, map, table) {
+    let ans = match calculate(expr.to_owned(), &map, table){
         calculator::Result::String(s) => s.to_string(),
         calculator::Result::Number(n) => n.to_string(),
         calculator::Result::Range(x, y) => format!("{:?}..{:?}", x, y),
@@ -257,8 +257,8 @@ impl Table {
 
     pub fn get_values_at_range(&self, start: &Position, end: &Position) -> Vec<Data> {
         let mut items: Vec<Data> = vec![];
-        for row in start.row..end.row {
-            for col in start.col..end.col {
+        for row in start.row..=end.row {
+            for col in start.col..=end.col {
                 items.push(self.get_value_at_position(&Position { row, col }))
             }
         }
@@ -327,7 +327,6 @@ impl Table {
                 position_parser::Token::Row(r) => {
                     row_pos = r - 1;
                 }
-                _ => todo!("Range not implemented"),
             }
         }
 

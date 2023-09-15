@@ -3,7 +3,10 @@ mod position_parser;
 mod sheet_tokenizer;
 mod table;
 
-use std::{collections::HashMap, io::{self, Read}};
+use std::{
+    collections::HashMap,
+    io::{self, Read},
+};
 
 use termios::{tcsetattr, Termios, ECHO, ICANON, TCSANOW};
 
@@ -86,7 +89,7 @@ fn handle_mode(table: &mut Table, mode: &Mode, key: u8) {
 }
 
 fn main() {
-    // let mut lexer = calculator::Lexer::new("sum(3)".to_string());
+    // let mut lexer = calculator::Lexer::new("sum($a1:$b1)".to_string());
     // let toks = lexer.tokenize();
     // println!("{:?}", toks);
     // let mut parser = calculator::Parser::new(toks);
@@ -94,7 +97,18 @@ fn main() {
     // println!("{:?}", tree);
     // let int = calculator::Interpreter::new(tree);
     // let symbols: HashMap<String, calculator::Result> = HashMap::new();
-    // println!("{:?}", int.interpret(&symbols));
+    // println!(
+    //     "{:?}",
+    //     int.interpret(
+    //         &symbols,
+    //         &Table::from_tokens(vec![
+    //             sheet_tokenizer::Token::LBracket,
+    //             sheet_tokenizer::Token::Number(3.0),
+    //             sheet_tokenizer::Token::Number(3.0),
+    //             sheet_tokenizer::Token::RBracket
+    //         ])
+    //     )
+    // );
 
     let mut args = std::env::args();
 

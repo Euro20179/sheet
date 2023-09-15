@@ -169,7 +169,7 @@ impl Table {
         self.pad_row(&mut row);
         self.rows.insert(row_no, row);
         for column in &mut self.columns {
-            column.insert(row_no, Data::Number("0".to_string()));
+            column.insert(row_no, Data::String("".to_string()));
         }
     }
 
@@ -178,7 +178,7 @@ impl Table {
         self.pad_col(&mut col);
         self.columns.insert(col_no, col);
         for row in &mut self.rows {
-            row.insert(col_no, Data::Number("0".to_string()));
+            row.insert(col_no, Data::String("".to_string()));
         }
     }
 
@@ -444,7 +444,7 @@ impl Table {
 
         if col.len() < largest_col {
             for _ in col.len()..largest_col {
-                col.push(Data::Number("0".to_string()));
+                col.push(Data::String("".to_string()));
             }
         }
     }
@@ -454,7 +454,7 @@ impl Table {
 
         if row.len() < largest_row {
             for _ in row.len()..largest_row {
-                row.push(Data::Number("0".to_string()));
+                row.push(Data::String("".to_string()));
             }
         }
     }

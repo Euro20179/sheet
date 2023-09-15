@@ -76,6 +76,7 @@ fn handle_normal_mode(program: &mut Program, key: KeySequence) {
             let pos = table.get_pos();
             for _ in 0..key.count {
                 table.add_col(pos.col + 1);
+                table.move_cursor(Direction::Right)
             }
         }
         'C' => {
@@ -128,14 +129,14 @@ fn handle_mode(program: &mut Program, key: KeySequence) {
     }
 }
 
-fn get_key(reader: &mut Stdin) -> KeySequence {
+fn get_key(program: &Program, reader: &mut Stdin) -> KeySequence {
     let mut count = String::new();
     let mut buf = [0; 1];
     loop {
         reader.read_exact(&mut buf).unwrap();
         let ch = buf[0];
 
-        if ch >= 48 && ch <= 57 {
+        if ch >= 48 && ch <= 57 && program.mode == Mode::Normal {
             count += &String::from(ch as char);
         } else {
             if count == "" {
@@ -224,7 +225,7 @@ fn main() {
             _ => true,
         };
         program.table.display(10, do_equations);
-        let key_sequence = get_key(&mut reader);
+        let key_sequence = get_key(&program, &mut reader);
         if key_sequence.action == 'q' && program.mode == Mode::Normal {
             break;
         } else {

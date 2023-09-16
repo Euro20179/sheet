@@ -403,7 +403,7 @@ impl Table {
     pub fn display(&self, max_width: usize, do_equations: bool) {
         let mut text = format!("{:<max_width$}", " ", max_width = max_width);
         let mut row_no = self.current_pos.row;
-        let row_slice = self.find_displayable_rows(20);
+        let row_slice = self.find_displayable_rows(30);
         let col_slice = self.find_displayable_cols(5);
         for i in col_slice[0]..col_slice[1] {
             text += &format!(

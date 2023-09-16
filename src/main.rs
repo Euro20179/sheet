@@ -216,6 +216,8 @@ fn main() {
     if let Ok(t) = data {
         text = t;
     }
+
+
     let toks = sheet_tokenizer::parse(text.as_str());
 
     let mut table = Table::from_tokens(toks);
@@ -227,8 +229,6 @@ fn main() {
     };
 
     let mut reader = std::io::stdin();
-
-
 
     loop {
         print!("\x1b[2J\x1b[0H");

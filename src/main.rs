@@ -5,7 +5,7 @@ mod table;
 
 use std::io::{Read, Stdin};
 
-use termios::{tcsetattr, Termios, ECHO, ICANON, TCSANOW};
+use termios::{tcsetattr, Termios, ECHO, ICANON, TCSANOW, tcgetattr};
 
 use table::Table;
 
@@ -20,6 +20,7 @@ enum Mode {
 struct KeySequence {
     pub count: usize,
     pub action: char,
+    pub key: String
 }
 
 struct Program<'a> {
@@ -33,13 +34,13 @@ fn handle_normal_mode(program: &mut Program, key: KeySequence) {
     //TODO: undo mode
     //table could keep track of previous instances of rows/columns
     //when u is pressed it restores the previous instance of rows/columns
-    match key.action {
-        'i' => program.mode = Mode::Insert,
-        's' => {
+    match key.key.as_str() {
+        "i" => program.mode = Mode::Insert,
+        "s" => {
             table.clear_cell(&table.get_pos());
             program.mode = Mode::Insert
         }
-        'j' => {
+        "\x1b[B" | "j" => {
             for _ in 0..key.count {
                 if table.cursor_at_bottom() {
                     table.add_row(table.get_pos().row + 1);
@@ -47,64 +48,64 @@ fn handle_normal_mode(program: &mut Program, key: KeySequence) {
                 table.move_cursor(Direction::Down);
             }
         }
-        'k' => {
+        "\x1b[A" | "k" => {
             for _ in 0..key.count {
                 table.move_cursor(Direction::Up);
             }
         }
-        'l' => {
+        "\x1b[C" | "l" => {
             for _ in 0..key.count {
                 table.move_cursor(Direction::Right);
             }
         }
-        'L' => table.move_cursor(Direction::MostRight),
-        'H' => table.move_cursor(Direction::MostLeft),
-        'h' => {
+        "L" => table.move_cursor(Direction::MostRight),
+        "H" => table.move_cursor(Direction::MostLeft),
+        "\x1b[D" | "h" => {
             for _ in 0..key.count {
                 table.move_cursor(Direction::Left);
             }
         }
-        'g' | 'K' => table.move_cursor(Direction::Top),
-        'G' | 'J' => table.move_cursor(Direction::Bottom),
-        'R' => {
+        "g" | "K" => table.move_cursor(Direction::Top),
+        "G" | "J" => table.move_cursor(Direction::Bottom),
+        "R" => {
             let pos = table.get_pos();
             for _ in 0..key.count {
                 table.add_row(pos.row);
             }
         }
-        'r' => {
+        "r" => {
             let pos = table.get_pos();
             for _ in 0..key.count {
                 table.add_row(pos.row + 1);
                 table.move_cursor(Direction::Down);
             }
         }
-        'c' => {
+        "c" => {
             let pos = table.get_pos();
             for _ in 0..key.count {
                 table.add_col(pos.col + 1);
                 table.move_cursor(Direction::Right)
             }
         }
-        'C' => {
+        "C" => {
             let pos = table.get_pos();
             for _ in 0..key.count {
                 table.add_col(pos.col);
             }
         }
-        'd' => {
+        "d" => {
             let row = table.get_pos().row;
             table.remove_row(row);
         }
-        'D' => {
+        "D" => {
             let col = table.get_pos().col;
             table.remove_col(col);
         }
-        'w' => {
+        "w" => {
             let sheet = table.to_sheet();
             std::fs::write(&program.file_path, sheet).unwrap();
         }
-        'x' => {
+        "x" => {
             let pos = table.get_pos();
             table.clear_cell(&pos)
         }
@@ -141,9 +142,10 @@ fn handle_mode(program: &mut Program, key: KeySequence) {
 
 fn get_key(program: &Program, reader: &mut Stdin) -> KeySequence {
     let mut count = String::new();
-    let mut buf = [0; 1];
+    let mut buf = [0; 32]; //consume enough bytes to store utf-8, 32 bytes should be enough
     loop {
-        reader.read_exact(&mut buf).unwrap();
+        let bytes_read = reader.read(&mut buf).unwrap();
+        let key = String::from_utf8(buf[0..bytes_read].to_vec()).unwrap();
         let ch = buf[0];
 
         if ch >= 48 && ch <= 57 && program.mode == Mode::Normal {
@@ -155,6 +157,7 @@ fn get_key(program: &Program, reader: &mut Stdin) -> KeySequence {
             return KeySequence {
                 action: ch as char,
                 count: count.parse().unwrap(),
+                key
             };
         }
     }
@@ -209,6 +212,8 @@ fn main() {
     let termios = Termios::from_fd(stdin).unwrap();
     let mut new_termios = termios.clone();
     new_termios.c_lflag &= !(ICANON | ECHO);
+    new_termios.c_cc[termios::VMIN] = 1;
+    new_termios.c_cc[termios::VTIME] = 10;
     tcsetattr(stdin, TCSANOW, &mut new_termios).unwrap();
 
     let data = std::fs::read_to_string(&fp);

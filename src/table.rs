@@ -147,6 +147,10 @@ pub enum Direction {
 }
 
 fn largest_list_in_2d_array<T>(array: &Vec<Vec<T>>) -> usize {
+    //FIXME: bug where if there is not a trailing comma in each row, the row is empty
+    if array.len() < 1 {
+        return 0;
+    }
     let mut largest = array[0].len();
     for arr in array {
         if arr.len() > largest {

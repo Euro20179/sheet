@@ -5,6 +5,8 @@ mod table;
 
 use std::io::{Read, Stdin};
 
+use base64::{alphabet, engine, prelude::*};
+
 use termios::{tcsetattr, Termios, ECHO, ICANON, TCSANOW, tcgetattr};
 
 use table::Table;
@@ -36,6 +38,14 @@ fn handle_normal_mode(program: &mut Program, key: KeySequence) {
     //when u is pressed it restores the previous instance of rows/columns
     match key.key.as_str() {
         "i" => program.mode = Mode::Insert,
+        "y" => {
+            let data = table.get_value_at_position(&table.get_pos());
+            let s = match data {
+                table::Data::Number(n) | table::Data::Equation(n, ..) | table::Data::String(n) => n,
+            };
+            let encoded = engine::general_purpose::STANDARD.encode(s);
+            print!("\x1b]52;c;{}\x07", encoded)
+        }
         "s" => {
             table.clear_cell(&table.get_pos());
             program.mode = Mode::Insert
@@ -126,10 +136,10 @@ fn handle_insert_mode(program: &mut Program, key: KeySequence) {
             if table.cursor_pos_is_empty() {
                 table.convert_cell(&table.get_pos(), table::Data::Equation(String::new(), None))
             } else {
-                table.append_char_to_cell(&table.get_pos(), key.action as char);
+                table.append_text_to_cell(&table.get_pos(), key.key);
             }
         }
-        _ => table.append_char_to_cell(&table.get_pos(), key.action as char),
+        _ => table.append_text_to_cell(&table.get_pos(), key.key),
     }
 }
 

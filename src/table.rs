@@ -165,10 +165,6 @@ impl Table {
         return self.current_pos;
     }
 
-    pub fn get_data_at_pos(&self, pos: &Position) -> &Data {
-        return &self.columns[pos.col][pos.row];
-    }
-
     pub fn add_row(&mut self, row_no: usize) {
         let mut row: Vec<Data> = vec![];
         self.pad_row(&mut row);
@@ -281,7 +277,7 @@ impl Table {
     }
 
     pub fn remove_last_char_in_cell(&mut self, position: &Position) {
-        let data = self.get_data_at_pos(position);
+        let data = self.get_value_at_position(position);
         let new_value = match data {
             Data::Equation(s, c) => {
                 let mut new_str = s.to_owned();
@@ -314,8 +310,8 @@ impl Table {
         self.set_value_at_position(position, new_value);
     }
 
-    pub fn append_char_to_cell(&mut self, position: &Position, char: char) {
-        let data = self.get_data_at_pos(position);
+    pub fn append_text_to_cell(&mut self, position: &Position, char: String) {
+        let data = self.get_value_at_position(position);
         match data {
             Data::Number(n) => {
                 let mut new_str = n.to_string();

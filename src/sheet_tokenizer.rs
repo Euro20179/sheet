@@ -16,11 +16,18 @@ pub enum Token {
 struct Lexer<'a> {
     tokens: Vec<Token>,
     chars: Chars<'a>,
+    cur_char: Option<char>,
 }
 
 impl Lexer<'_> {
     pub fn next(&mut self) -> Option<char> {
-        return self.chars.next();
+        let c = self.chars.next();
+        self.cur_char = c;
+        return c;
+    }
+
+    pub fn get_cur_char(&self) -> Option<char> {
+        return self.cur_char;
     }
 
     pub fn add_token(&mut self, tok: Token) {
@@ -51,13 +58,11 @@ fn parse_number(lexer: &mut Lexer, start_char: char) -> f64 {
             is_dec = true;
         } else if char == '.' {
             break;
-        } else if match char {
-            '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' => false,
-            _ => true,
-        } {
+        } else if let '0'..='9' = char {
+            text += &char.to_string();
+        } else {
             break;
         }
-        text += &char.to_string();
     }
 
     let n: f64 = text.parse().expect("Could not parse number");
@@ -85,27 +90,38 @@ pub fn parse(contents: &str) -> Vec<Token> {
     let mut lexer = Lexer {
         tokens: vec![],
         chars: contents.chars(),
+        cur_char: None,
     };
 
+    //number eats 1 character too far, after the call to parse_number, do not call lexer.next
+    let mut get_next = true;
     loop {
-        let char = lexer.next();
-        match char {
+        let cur_char: Option<char>;
+        if get_next {
+            cur_char = lexer.next();
+        } else if let Some(ch) = lexer.get_cur_char() {
+            get_next = true;
+            cur_char = Some(ch);
+        } else {
+            break;
+        }
+        match cur_char {
             None => break,
             Some(char) => {
-                if char != ' ' && char != '\n' && char != '\t' && char != '\r' {
-                    let tok = match char {
-                        ']' => Token::RBracket,
-                        '[' => Token::LBracket,
-                        '(' => Token::Expr(parse_expr(&mut lexer)),
-                        '"' => Token::String(parse_string(&mut lexer)),
-                        ',' => Token::Comma,
-                        '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' => {
-                            Token::Number(parse_number(&mut lexer, char))
-                        }
-                        _ => Token::Err(char),
-                    };
-                    lexer.add_token(tok);
-                }
+                let tok = match char {
+                    ' ' | '\n' | '\t' | '\r' => continue,
+                    ']' => Token::RBracket,
+                    '[' => Token::LBracket,
+                    '(' => Token::Expr(parse_expr(&mut lexer)),
+                    '"' => Token::String(parse_string(&mut lexer)),
+                    ',' => Token::Comma,
+                    '0'..='9' => {
+                        get_next = false;
+                        Token::Number(parse_number(&mut lexer, char))
+                    }
+                    _ => Token::Err(char),
+                };
+                lexer.add_token(tok);
             }
         }
     }

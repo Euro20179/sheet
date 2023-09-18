@@ -561,7 +561,7 @@ impl Table {
         }
     }
 
-    pub fn from_tokens(toks: Vec<sheet_tokenizer::Token>) -> Table {
+    pub fn from_sheet_tokens(toks: Vec<sheet_tokenizer::Token>) -> Table {
         let mut rows: Vec<Vec<Data>> = vec![];
         let mut iter_toks = toks.into_iter();
         type T = sheet_tokenizer::Token;

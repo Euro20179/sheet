@@ -262,11 +262,9 @@ fn main() {
         text = t;
     }
 
-
-
     let toks = sheet_tokenizer::parse(text.as_str());
 
-    let mut table = Table::from_tokens(toks);
+    let mut table = Table::from_sheet_tokens(toks);
 
     let mut program = Program {
         table: &mut table,

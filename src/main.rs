@@ -5,9 +5,9 @@ mod table;
 
 use std::io::{Read, Stdin};
 
-use base64::{alphabet, engine, prelude::*};
+use base64::{engine, prelude::*};
 
-use termios::{tcsetattr, Termios, ECHO, ICANON, TCSANOW, tcgetattr};
+use termios::{tcsetattr, Termios, ECHO, ICANON, TCSANOW};
 
 use table::Table;
 

@@ -5,7 +5,7 @@ use crate::{
     position_parser, sheet_tokenizer,
 };
 
-fn base_26_to_10(n: String) -> usize {
+pub fn base_26_to_10(n: String) -> usize {
     let mut ans = 0;
     let reversed = n.chars().rev().collect::<String>();
     let base: usize = 26;
@@ -205,6 +205,15 @@ impl Table {
         }
     }
 
+    pub fn set_cursor_pos(&mut self, row_no: usize, col_no: usize) {
+        if row_no < self.rows.len() && row_no >= 0 {
+            self.current_pos.row = row_no;
+        }
+        if col_no < self.columns.len() && col_no >= 0 {
+            self.current_pos.col = col_no;
+        }
+    }
+
     pub fn move_cursor(&mut self, direction: Direction) {
         match direction {
             Direction::Up => {
@@ -274,6 +283,10 @@ impl Table {
 
     pub fn cursor_at_bottom(&self) -> bool {
         return self.get_pos().row == self.rows.len() - 1;
+    }
+
+    pub fn cursor_at_right(&self) -> bool {
+        return self.current_pos.col == self.columns.len() - 1;
     }
 
     pub fn remove_last_char_in_cell(&mut self, position: &Position) {
@@ -384,27 +397,45 @@ impl Table {
     }
 
     fn find_displayable_rows(&self, rows_to_view: usize) -> [usize; 2]{
-        if self.current_pos.row + rows_to_view > self.rows.len() {
-            [self.current_pos.row, self.rows.len()]
+        let mut rows_above = rows_to_view / 2;
+        let mut rows_below = rows_to_view / 2;
+        if rows_above > self.current_pos.row {
+            rows_above = self.current_pos.row;
         }
-        else {
-            [self.current_pos.row, self.current_pos.row + rows_to_view]
+        if self.current_pos.row + rows_below >= self.rows.len() {
+            rows_below = self.rows.len() - self.current_pos.row;
         }
+        return [self.current_pos.row - rows_above, self.current_pos.row + rows_below];
+        // if self.current_pos.row + rows_to_view > self.rows.len() {
+        //     [self.current_pos.row, self.rows.len()]
+        // }
+        // else {
+        //     [self.current_pos.row, self.current_pos.row + rows_to_view]
+        // }
     }
 
     fn find_displayable_cols(&self, cols_to_view: usize) -> [usize; 2] {
-        if self.current_pos.col + cols_to_view > self.columns.len() {
-            [self.current_pos.col, self.columns.len()]
-        } else {
-            [self.current_pos.col, self.current_pos.col + cols_to_view]
+        let mut cols_left = cols_to_view / 2;
+        let mut cols_right = cols_to_view / 2;
+        if cols_left > self.current_pos.col {
+            cols_left = self.current_pos.col;
         }
+        if self.current_pos.col + cols_right >= self.columns.len() {
+            cols_right = self.columns.len() - self.current_pos.col;
+        }
+        return [self.current_pos.col - cols_left, self.current_pos.col + cols_right];
+        // if self.current_pos.col + cols_to_view > self.columns.len() {
+        //     [self.current_pos.col, self.columns.len()]
+        // } else {
+        //     [self.current_pos.col, self.current_pos.col + cols_to_view]
+        // }
     }
 
     pub fn display(&self, max_width: usize, do_equations: bool) {
         let mut text = format!("{:<max_width$}", " ", max_width = max_width);
-        let mut row_no = self.current_pos.row;
         let row_slice = self.find_displayable_rows(30);
-        let col_slice = self.find_displayable_cols(5);
+        let col_slice = self.find_displayable_cols(6);
+        let mut row_no = row_slice[0];
         for i in col_slice[0]..col_slice[1] {
             text += &format!(
                 "{:^max_width$}",
@@ -414,7 +445,7 @@ impl Table {
         }
         text += &String::from("\n");
         for row in &self.rows[row_slice[0]..row_slice[1]] {
-            let mut col_no = self.current_pos.col;
+            let mut col_no = col_slice[0];
             text += &format!(
                 "{:^max_width$}",
                 &(row_no + 1).to_string(),

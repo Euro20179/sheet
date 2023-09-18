@@ -22,7 +22,7 @@ enum Mode {
 struct KeySequence {
     pub count: usize,
     pub action: char,
-    pub key: String
+    pub key: String,
 }
 
 struct Program<'a> {
@@ -32,14 +32,44 @@ struct Program<'a> {
 }
 
 fn handle_normal_mode(program: &mut Program, key: KeySequence) {
-    let table = &mut program.table;
     //TODO: undo mode
     //table could keep track of previous instances of rows/columns
     //when u is pressed it restores the previous instance of rows/columns
     match key.key.as_str() {
         "i" => program.mode = Mode::Insert,
+        ":" => {
+            let mut reader = std::io::stdin();
+            let mut col = String::new();
+            let mut row = String::new();
+            loop {
+                let key = get_key(program, &mut reader, false);
+                eprintln!("key: {:?}", key.action);
+                match key.action {
+                    'A'..='Z' => col += &String::from((key.action as u8 + 32) as char),
+                    'a'..='z' => col += &String::from(key.action),
+                    '0'..='9' => {
+                        row += &String::from(key.action);
+                        break;
+                    }
+                    _ => break,
+                }
+            }
+            loop {
+                let key = get_key(program, &mut reader, false);
+                match key.action {
+                    '0'..='9' => row += &String::from(key.action),
+                    _ => break,
+                }
+            }
+            let row_num: usize = row.parse().unwrap();
+            program
+                .table
+                .set_cursor_pos(row_num - 1, table::base_26_to_10(col))
+        }
         "y" => {
-            let data = table.get_value_at_position(&table.get_pos());
+            let data = program
+                .table
+                .get_value_at_position(&program.table.get_pos());
             let s = match data {
                 table::Data::Number(n) | table::Data::Equation(n, ..) | table::Data::String(n) => n,
             };
@@ -47,77 +77,80 @@ fn handle_normal_mode(program: &mut Program, key: KeySequence) {
             print!("\x1b]52;c;{}\x07", encoded)
         }
         "s" => {
-            table.clear_cell(&table.get_pos());
+            program.table.clear_cell(&program.table.get_pos());
             program.mode = Mode::Insert
         }
         "\x1b[B" | "j" => {
             for _ in 0..key.count {
-                if table.cursor_at_bottom() {
-                    table.add_row(table.get_pos().row + 1);
+                if program.table.cursor_at_bottom() {
+                    program.table.add_row(program.table.get_pos().row + 1);
                 }
-                table.move_cursor(Direction::Down);
+                program.table.move_cursor(Direction::Down);
             }
         }
         "\x1b[A" | "k" => {
             for _ in 0..key.count {
-                table.move_cursor(Direction::Up);
+                program.table.move_cursor(Direction::Up);
             }
         }
         "\x1b[C" | "l" => {
             for _ in 0..key.count {
-                table.move_cursor(Direction::Right);
+                if program.table.cursor_at_right(){
+                    program.table.add_col(program.table.get_pos().col + 1);
+                }
+                program.table.move_cursor(Direction::Right);
             }
         }
-        "L" => table.move_cursor(Direction::MostRight),
-        "H" => table.move_cursor(Direction::MostLeft),
+        "L" => program.table.move_cursor(Direction::MostRight),
+        "H" => program.table.move_cursor(Direction::MostLeft),
         "\x1b[D" | "h" => {
             for _ in 0..key.count {
-                table.move_cursor(Direction::Left);
+                program.table.move_cursor(Direction::Left);
             }
         }
-        "g" | "K" => table.move_cursor(Direction::Top),
-        "G" | "J" => table.move_cursor(Direction::Bottom),
+        "g" | "K" => program.table.move_cursor(Direction::Top),
+        "G" | "J" => program.table.move_cursor(Direction::Bottom),
         "R" => {
-            let pos = table.get_pos();
+            let pos = program.table.get_pos();
             for _ in 0..key.count {
-                table.add_row(pos.row);
+                program.table.add_row(pos.row);
             }
         }
         "r" => {
-            let pos = table.get_pos();
+            let pos = program.table.get_pos();
             for _ in 0..key.count {
-                table.add_row(pos.row + 1);
-                table.move_cursor(Direction::Down);
+                program.table.add_row(pos.row + 1);
+                program.table.move_cursor(Direction::Down);
             }
         }
         "c" => {
-            let pos = table.get_pos();
+            let pos = program.table.get_pos();
             for _ in 0..key.count {
-                table.add_col(pos.col + 1);
-                table.move_cursor(Direction::Right)
+                program.table.add_col(pos.col + 1);
+                program.table.move_cursor(Direction::Right)
             }
         }
         "C" => {
-            let pos = table.get_pos();
+            let pos = program.table.get_pos();
             for _ in 0..key.count {
-                table.add_col(pos.col);
+                program.table.add_col(pos.col);
             }
         }
         "d" => {
-            let row = table.get_pos().row;
-            table.remove_row(row);
+            let row = program.table.get_pos().row;
+            program.table.remove_row(row);
         }
         "D" => {
-            let col = table.get_pos().col;
-            table.remove_col(col);
+            let col = program.table.get_pos().col;
+            program.table.remove_col(col);
         }
         "w" => {
-            let sheet = table.to_sheet();
+            let sheet = program.table.to_sheet();
             std::fs::write(&program.file_path, sheet).unwrap();
         }
         "x" => {
-            let pos = table.get_pos();
-            table.clear_cell(&pos)
+            let pos = program.table.get_pos();
+            program.table.clear_cell(&pos)
         }
         _ => {}
     }
@@ -129,9 +162,7 @@ fn handle_insert_mode(program: &mut Program, key: KeySequence) {
         //backspace
         127 => table.remove_last_char_in_cell(&table.get_pos()),
         10 => program.mode = Mode::Normal,
-        b'\t' => {
-            table.move_cursor(Direction::Right)
-        }
+        b'\t' => table.move_cursor(Direction::Right),
         b'=' => {
             if table.cursor_pos_is_empty() {
                 table.convert_cell(&table.get_pos(), table::Data::Equation(String::new(), None))
@@ -150,7 +181,7 @@ fn handle_mode(program: &mut Program, key: KeySequence) {
     }
 }
 
-fn get_key(program: &Program, reader: &mut Stdin) -> KeySequence {
+fn get_key(program: &Program, reader: &mut Stdin, accept_count: bool) -> KeySequence {
     let mut count = String::new();
     let mut buf = [0; 32]; //consume enough bytes to store utf-8, 32 bytes should be enough
     loop {
@@ -158,7 +189,7 @@ fn get_key(program: &Program, reader: &mut Stdin) -> KeySequence {
         let key = String::from_utf8(buf[0..bytes_read].to_vec()).unwrap();
         let ch = buf[0];
 
-        if ch >= 48 && ch <= 57 && program.mode == Mode::Normal {
+        if ch >= 48 && ch <= 57 && program.mode == Mode::Normal && accept_count{
             count += &String::from(ch as char);
         } else {
             if count == "" {
@@ -167,7 +198,7 @@ fn get_key(program: &Program, reader: &mut Stdin) -> KeySequence {
             return KeySequence {
                 action: ch as char,
                 count: count.parse().unwrap(),
-                key
+                key,
             };
         }
     }
@@ -232,7 +263,6 @@ fn main() {
         text = t;
     }
 
-
     let toks = sheet_tokenizer::parse(text.as_str());
 
     let mut table = Table::from_tokens(toks);
@@ -253,7 +283,7 @@ fn main() {
         };
         program.table.display(10, do_equations);
         //TODO: detect multi-char keys eg: ^[A
-        let key_sequence = get_key(&program, &mut reader);
+        let key_sequence = get_key(&program, &mut reader, false);
         //TODO: add detection for if the file is saved
         if key_sequence.action == 'q' && program.mode == Mode::Normal {
             break;

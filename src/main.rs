@@ -43,7 +43,6 @@ fn handle_normal_mode(program: &mut Program, key: KeySequence) {
             let mut row = String::new();
             loop {
                 let key = get_key(program, &mut reader, false);
-                eprintln!("key: {:?}", key.action);
                 match key.action {
                     'A'..='Z' => col += &String::from((key.action as u8 + 32) as char),
                     'a'..='z' => col += &String::from(key.action),
@@ -263,6 +262,8 @@ fn main() {
         text = t;
     }
 
+
+
     let toks = sheet_tokenizer::parse(text.as_str());
 
     let mut table = Table::from_tokens(toks);
@@ -281,7 +282,7 @@ fn main() {
             Mode::Insert => false,
             _ => true,
         };
-        program.table.display(10, do_equations);
+        println!("{}", program.table.display(10, do_equations));
         //TODO: detect multi-char keys eg: ^[A
         let key_sequence = get_key(&program, &mut reader, false);
         //TODO: add detection for if the file is saved

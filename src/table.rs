@@ -165,20 +165,29 @@ impl Table {
         return self.current_pos;
     }
 
-    pub fn add_row(&mut self, row_no: usize) {
+    pub fn add_row(&mut self, mut row_no: usize) {
         let mut row: Vec<Data> = vec![];
+        if self.rows.len() == 0 {
+            self.rows = vec![];
+            row_no = 0;
+        }
         self.pad_row(&mut row);
         self.rows.insert(row_no, row);
+
         for column in &mut self.columns {
             column.insert(row_no, Data::String("".to_string()));
         }
     }
 
-    pub fn add_col(&mut self, col_no: usize) {
+    pub fn add_col(&mut self, mut col_no: usize) {
         let mut col: Vec<Data> = vec![];
-        self.column_sizes.insert(col_no, 10);
+        if self.columns.len() == 0 {
+            self.columns = vec![];
+            col_no -= 1;
+        }
         self.pad_col(&mut col);
         self.columns.insert(col_no, col);
+        self.column_sizes.insert(col_no, 10);
         for row in &mut self.rows {
             row.insert(col_no, Data::String("".to_string()));
         }
@@ -206,10 +215,10 @@ impl Table {
     }
 
     pub fn set_cursor_pos(&mut self, row_no: usize, col_no: usize) {
-        if row_no < self.rows.len(){
+        if row_no < self.rows.len() {
             self.current_pos.row = row_no;
         }
-        if col_no < self.columns.len(){
+        if col_no < self.columns.len() {
             self.current_pos.col = col_no;
         }
     }
@@ -432,7 +441,7 @@ impl Table {
         ];
     }
 
-    pub fn display(&self, max_width: usize, do_equations: bool) {
+    pub fn display(&self, max_width: usize, do_equations: bool) -> String {
         let mut text = format!("{:<max_width$}", " ", max_width = max_width);
         let row_slice = self.find_displayable_rows(30);
         let col_slice = self.find_displayable_cols(6);
@@ -465,7 +474,7 @@ impl Table {
             text += &"\n".to_owned();
             row_no += 1;
         }
-        println!("{}", text);
+        return text;
     }
 
     pub fn to_sheet(&self) -> String {
@@ -580,18 +589,23 @@ impl Table {
             }
         }
 
-        let column_sizes: Vec<usize> = rows
-            .remove(0)
-            .into_iter()
-            .map(|d| {
-                if let Data::Number(n) = d {
-                    let size: usize = n.parse().unwrap();
-                    return size;
-                }
-                return 10;
-            })
-            .collect();
-
+        let column_sizes: Vec<usize>;
+        if rows.len() > 0 {
+            column_sizes = rows
+                .remove(0)
+                .into_iter()
+                .map(|d| {
+                    if let Data::Number(n) = d {
+                        let size: usize = n.parse().unwrap();
+                        return size;
+                    }
+                    return 10;
+                })
+                .collect();
+        } else {
+            rows.push(vec![Data::String(String::from(""))]);
+            column_sizes = vec![10];
+        }
         let columns = Table::build_columns_from_rows(&rows);
         Table::pad_rows(&mut rows);
         return Table {

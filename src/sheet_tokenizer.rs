@@ -56,6 +56,7 @@ fn parse_number(lexer: &mut Lexer, start_char: char) -> f64 {
     while let Some(char) = lexer.next() {
         if char == '.' && !is_dec {
             is_dec = true;
+            text += &char.to_string();
         } else if char == '.' {
             break;
         } else if let '0'..='9' = char {

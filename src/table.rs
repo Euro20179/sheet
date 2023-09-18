@@ -464,15 +464,12 @@ impl Table {
                 max_width = max_width
             );
             for item in &row[col_slice[0]..col_slice[1]] {
-                let display_text =
-                    &item.display(self, self.column_sizes[col_no], do_equations, true);
-                if self.is_current_pos(row_no, col_no) {
-                    text += &String::from("\x1b[7m");
-                    text += display_text;
-                    text += &String::from("\x1b[0m")
+                let display_text = item.display(self, self.column_sizes[col_no], do_equations, true);
+                text += &(if self.is_current_pos(row_no, col_no) {
+                    format!("\x1b[7m{}\x1b[0m", display_text)
                 } else {
-                    text += display_text;
-                }
+                    display_text
+                });
                 col_no += 1;
             }
             text += &"\n".to_owned();

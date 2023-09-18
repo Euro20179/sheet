@@ -402,7 +402,7 @@ impl Table {
         }
     }
 
-    fn find_displayable_rows(&self, rows_to_view: usize) -> [usize; 2]{
+    fn find_displayable_rows(&self, rows_to_view: usize) -> [usize; 2] {
         let mut rows_above = rows_to_view / 2;
         let mut rows_below = rows_to_view / 2;
         if rows_above > self.current_pos.row {
@@ -411,7 +411,10 @@ impl Table {
         if self.current_pos.row + rows_below >= self.rows.len() {
             rows_below = self.rows.len() - self.current_pos.row;
         }
-        return [self.current_pos.row - rows_above, self.current_pos.row + rows_below];
+        return [
+            self.current_pos.row - rows_above,
+            self.current_pos.row + rows_below,
+        ];
         // if self.current_pos.row + rows_to_view > self.rows.len() {
         //     [self.current_pos.row, self.rows.len()]
         // }
@@ -429,7 +432,10 @@ impl Table {
         if self.current_pos.col + cols_right >= self.columns.len() {
             cols_right = self.columns.len() - self.current_pos.col;
         }
-        return [self.current_pos.col - cols_left, self.current_pos.col + cols_right];
+        return [
+            self.current_pos.col - cols_left,
+            self.current_pos.col + cols_right,
+        ];
         // if self.current_pos.col + cols_to_view > self.columns.len() {
         //     [self.current_pos.col, self.columns.len()]
         // } else {
@@ -458,12 +464,14 @@ impl Table {
                 max_width = max_width
             );
             for item in &row[col_slice[0]..col_slice[1]] {
+                let display_text =
+                    &item.display(self, self.column_sizes[col_no], do_equations, true);
                 if self.is_current_pos(row_no, col_no) {
-                    text += &String::from("\x1b[41m");
-                    text += &item.display(self, self.column_sizes[col_no], do_equations, true);
+                    text += &String::from("\x1b[7m");
+                    text += display_text;
                     text += &String::from("\x1b[0m")
                 } else {
-                    text += &item.display(self, self.column_sizes[col_no], do_equations, false);
+                    text += display_text;
                 }
                 col_no += 1;
             }

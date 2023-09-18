@@ -206,10 +206,10 @@ impl Table {
     }
 
     pub fn set_cursor_pos(&mut self, row_no: usize, col_no: usize) {
-        if row_no < self.rows.len() && row_no >= 0 {
+        if row_no < self.rows.len(){
             self.current_pos.row = row_no;
         }
-        if col_no < self.columns.len() && col_no >= 0 {
+        if col_no < self.columns.len(){
             self.current_pos.col = col_no;
         }
     }
@@ -415,12 +415,6 @@ impl Table {
             self.current_pos.row - rows_above,
             self.current_pos.row + rows_below,
         ];
-        // if self.current_pos.row + rows_to_view > self.rows.len() {
-        //     [self.current_pos.row, self.rows.len()]
-        // }
-        // else {
-        //     [self.current_pos.row, self.current_pos.row + rows_to_view]
-        // }
     }
 
     fn find_displayable_cols(&self, cols_to_view: usize) -> [usize; 2] {
@@ -436,11 +430,6 @@ impl Table {
             self.current_pos.col - cols_left,
             self.current_pos.col + cols_right,
         ];
-        // if self.current_pos.col + cols_to_view > self.columns.len() {
-        //     [self.current_pos.col, self.columns.len()]
-        // } else {
-        //     [self.current_pos.col, self.current_pos.col + cols_to_view]
-        // }
     }
 
     pub fn display(&self, max_width: usize, do_equations: bool) {
@@ -464,7 +453,8 @@ impl Table {
                 max_width = max_width
             );
             for item in &row[col_slice[0]..col_slice[1]] {
-                let display_text = item.display(self, self.column_sizes[col_no], do_equations, true);
+                let display_text =
+                    item.display(self, self.column_sizes[col_no], do_equations, true);
                 text += &(if self.is_current_pos(row_no, col_no) {
                     format!("\x1b[7m{}\x1b[0m", display_text)
                 } else {

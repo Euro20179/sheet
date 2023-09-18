@@ -258,7 +258,7 @@ fn main() {
     tcsetattr(stdin, TCSANOW, &mut new_termios).unwrap();
 
     let data = std::fs::read_to_string(&fp);
-    let mut text = String::from("[]");
+    let mut text = String::from("");
     if let Ok(t) = data {
         text = t;
     }

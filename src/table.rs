@@ -282,10 +282,16 @@ impl Table {
     }
 
     pub fn cursor_at_bottom(&self) -> bool {
+        if self.rows.len() == 0 {
+            return true;
+        }
         return self.get_pos().row == self.rows.len() - 1;
     }
 
     pub fn cursor_at_right(&self) -> bool {
+        if self.columns.len() == 0 {
+            return true;
+        }
         return self.current_pos.col == self.columns.len() - 1;
     }
 

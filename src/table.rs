@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 macro_rules! IF {
     ($e:expr, true=>  $t:expr, false=> $f:expr) => {
@@ -39,7 +39,7 @@ pub fn base_10_to_col_num(mut n: usize) -> String {
 #[derive(Debug, Clone)]
 pub enum Data {
     Number(String),
-    Equation(String, Option<calculator::Result>),
+    Equation(String, Option<calculator::CalculatorValue>),
     String(String),
 }
 
@@ -48,12 +48,20 @@ fn handle_equation(
     expr: &str,
     _invalid_references: &mut Vec<(usize, usize)>,
 ) -> Result<String, &'static str> {
-    let map: HashMap<String, calculator::Result> = HashMap::new();
+    let mut map: HashMap<String, calculator::CalculatorValue> = HashMap::new();
 
-    let ans = match calculate(expr, &map, table) {
-        calculator::Result::String(s) => s.to_string(),
-        calculator::Result::Number(n) => n.to_string(),
-        calculator::Result::Range(x, y) => format!("{:?}..{:?}", x, y),
+    map.insert("%recursion".to_string(), calculator::CalculatorValue::Number(0.0));
+
+    let ans = match calculate(expr, &mut map, table) {
+        Ok(calculator::CalculatorValue::String(s)) => s.to_string(),
+        Ok(calculator::CalculatorValue::Number(n)) => n.to_string(),
+        Ok(calculator::CalculatorValue::Range(x, y)) => format!("{:?}..{:?}", x, y),
+        Err(e) => {
+            IF!(e == 1,
+                true => "Err#1: Recursion limit reached",
+                false => ""
+            ).to_owned()
+        }
     };
     return Ok(ans);
 }

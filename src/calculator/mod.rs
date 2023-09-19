@@ -2,6 +2,8 @@ use std::{collections::HashMap, str::Chars};
 
 use crate::table::{self, Data, Position, Table};
 
+static RECURSION_LIMIT: f64 = 1000.0;
+
 #[derive(Debug, Clone)]
 pub enum Token {
     Plus,
@@ -60,12 +62,12 @@ impl Lexer<'_> {
 
     fn build_ident(&mut self) -> String {
         let mut ident = self.cur_char.unwrap().to_string();
-        while let Some(ch) = self.next(){
+        while let Some(ch) = self.next() {
             match ch {
                 'A'..='Z' | 'a'..='z' | '0'..='9' | '_' => {
                     ident += &String::from(ch);
                 }
-                _ => break
+                _ => break,
             }
         }
         return ident;
@@ -89,14 +91,14 @@ impl Lexer<'_> {
                         let tok = Token::Ident(self.build_ident());
                         tokens.push(tok);
                         continue;
-                    },
+                    }
                     ':' => Token::Colon,
                     ',' => Token::Comma,
                     '0'..='9' => {
                         let tok = Token::Number(self.build_number());
                         tokens.push(tok);
                         continue;
-                    },
+                    }
                     ' ' | '\t' | '\n' => {
                         self.next();
                         continue;
@@ -105,7 +107,7 @@ impl Lexer<'_> {
                         let tok = Token::Ident(self.build_ident());
                         tokens.push(tok);
                         continue;
-                    },
+                    }
                     _ => Token::Number(0.0),
                 };
                 tokens.push(tok);
@@ -134,29 +136,38 @@ pub enum Node {
 }
 
 impl Node {
-    pub fn visit(&self, symbols: &HashMap<String, Result>, table: &Table) -> Result {
+    pub fn visit(
+        &self,
+        symbols: &mut HashMap<String, CalculatorValue>,
+        table: &Table,
+    ) -> Result<CalculatorValue, u8> {
         match self {
             Node::Call(fn_name, nodes) => {
-                let values = nodes.into_iter().map(|node| node.visit(symbols, table));
-
+                let mut values: Vec<CalculatorValue> = vec![];
+                //not using map because closures require a special borrow that breaks everything
+                for node in nodes {
+                    if let Ok(v) = node.visit(symbols, table) {
+                        values.push(v);
+                    }
+                }
                 if fn_name == "rand" {
-                    return Result::Number(rand::random());
+                    return Ok(CalculatorValue::Number(rand::random()));
                 } else if fn_name == "sum" {
                     let mut sum = 0.0;
                     for value in values {
                         sum += value.to_f64(symbols, table);
                     }
-                    return Result::Number(sum);
+                    return Ok(CalculatorValue::Number(sum));
                 } else if fn_name == "mean" {
                     let mut sum = 0.0;
                     let mut real_count = 0; //dont count strings
                     for value in values {
                         match value {
-                            Result::Number(n) => {
+                            CalculatorValue::Number(n) => {
                                 sum += n;
                                 real_count += 1;
                             }
-                            Result::Range(start, end) => {
+                            CalculatorValue::Range(start, end) => {
                                 let vals = table.get_values_at_range(&start, &end);
                                 for val in vals {
                                     match val {
@@ -168,7 +179,7 @@ impl Node {
                                             if let Some(r) = cache {
                                                 sum += r.to_f64(symbols, table);
                                             } else {
-                                                sum += calculate(&e, symbols, table)
+                                                sum += calculate(&e, symbols, table)?
                                                     .to_f64(symbols, table);
                                             }
                                             real_count += 1;
@@ -180,13 +191,16 @@ impl Node {
                             _ => {}
                         }
                     }
-                    return Result::Number(sum / real_count as f64);
+                    return Ok(CalculatorValue::Number(sum / real_count as f64));
                 }
-                return Result::Number(0.0);
+                return Ok(CalculatorValue::Number(0.0));
             }
             Node::Ident(s) => {
                 if s.chars().nth(0).unwrap_or('a') != '$' {
-                    symbols.get(s).unwrap_or(&Result::Number(0.0)).to_owned()
+                    Ok(symbols
+                        .get(s)
+                        .unwrap_or(&CalculatorValue::Number(0.0))
+                        .to_owned())
                 } else {
                     let name = s[1..].to_string();
                     let pos = table.human_position_to_position(name);
@@ -194,38 +208,38 @@ impl Node {
                     let res_value = match val {
                         Data::Number(n) => {
                             let num: f64 = n.parse().unwrap();
-                            return Result::Number(num);
+                            return Ok(CalculatorValue::Number(num));
                         }
-                        Data::String(a) => Result::String(a),
+                        Data::String(a) => CalculatorValue::String(a),
                         Data::Equation(e, _cache) => {
                             //FIXME: can be infinitely recursive when self referencing occurs
                             return calculate(&e, symbols, table);
                         }
                     };
-                    return res_value;
+                    return Ok(res_value);
                 }
             }
             Node::Range(start, finish) => {
                 let start_pos = table.human_position_to_position(start[1..].to_owned());
                 let end_pos = table.human_position_to_position(finish[1..].to_owned());
-                Result::Range(start_pos, end_pos)
+                Ok(CalculatorValue::Range(start_pos, end_pos))
             }
-            Node::Number(n) => Result::Number(n.to_owned()),
+            Node::Number(n) => Ok(CalculatorValue::Number(n.to_owned())),
             Node::BinOp(left, op, right) => {
                 let left_val = left.visit(symbols, table);
                 let right_val = right.visit(symbols, table);
 
                 match left_val {
-                    Result::Number(n) => match right_val {
-                        Result::Number(n2) => match op {
-                            Operation::Mul => Result::Number(n * n2),
-                            Operation::Div => Result::Number(n / n2),
-                            Operation::Plus => Result::Number(n + n2),
-                            Operation::Minus => Result::Number(n - n2),
+                    Ok(CalculatorValue::Number(n)) => match right_val {
+                        Ok(CalculatorValue::Number(n2)) => match op {
+                            Operation::Mul => Ok(CalculatorValue::Number(n * n2)),
+                            Operation::Div => Ok(CalculatorValue::Number(n / n2)),
+                            Operation::Plus => Ok(CalculatorValue::Number(n + n2)),
+                            Operation::Minus => Ok(CalculatorValue::Number(n - n2)),
                         },
-                        _ => Result::Number(0.0),
+                        _ => Ok(CalculatorValue::Number(0.0)),
                     },
-                    _ => Result::Number(0.0),
+                    _ => Ok(CalculatorValue::Number(0.0)),
                 }
             }
         }
@@ -269,7 +283,7 @@ impl Parser {
                     self.next();
                     if let Token::Ident(i2) = self.cur_tok.clone() {
                         self.next();
-                        return Node::Range(i, i2.to_string());
+                        return Node::Range(i.to_string(), i2.to_string());
                     }
                 } else if let Token::LParen = self.cur_tok {
                     self.next();
@@ -286,9 +300,9 @@ impl Parser {
                         }
                     }
                     self.next();
-                    return Node::Call(i, nodes);
+                    return Node::Call(i.to_string(), nodes);
                 }
-                return Node::Ident(i);
+                return Node::Ident(i.to_string());
             }
             Token::LParen => {
                 self.next();
@@ -343,18 +357,18 @@ impl Parser {
 }
 
 #[derive(Debug, Clone)]
-pub enum Result {
+pub enum CalculatorValue {
     String(String),
     Number(f64),
     Range(Position, Position),
 }
 
-impl Result {
-    pub fn to_f64(&self, symbols: &HashMap<String, Result>, table: &Table) -> f64 {
+impl CalculatorValue {
+    pub fn to_f64(&self, symbols: &mut HashMap<String, CalculatorValue>, table: &Table) -> f64 {
         match self {
-            Result::String(..) => 0.0,
-            Result::Number(n) => *n,
-            Result::Range(start, end) => {
+            CalculatorValue::String(..) => 0.0,
+            CalculatorValue::Number(n) => *n,
+            CalculatorValue::Range(start, end) => {
                 let vals = table.get_values_at_range(&start, &end);
                 let mut sum = 0.0;
                 for val in vals {
@@ -365,7 +379,9 @@ impl Result {
                             if let Some(r) = cache {
                                 sum += r.to_f64(symbols, table);
                             } else {
-                                sum += calculate(&e, symbols, table).to_f64(symbols, table)
+                                if let Ok(v) = calculate(&e, symbols, table){
+                                    sum += v.to_f64(symbols, table);
+                                }
                             }
                         }
                     }
@@ -385,7 +401,19 @@ impl Interpreter {
         return Interpreter { tree };
     }
 
-    pub fn interpret(&self, symbols: &HashMap<String, Result>, table: &Table) -> Result {
+    pub fn interpret(
+        &self,
+        symbols: &mut HashMap<String, CalculatorValue>,
+        table: &Table,
+    ) -> Result<CalculatorValue, u8> {
+        let rec_count = symbols.get_mut("%recursion");
+        if let Some(CalculatorValue::Number(n)) = rec_count {
+            *n += 1.0;
+            if *n > RECURSION_LIMIT{
+                eprintln!("rec: {:?}", rec_count);
+                return Err(1)
+            }
+        }
         self.tree.visit(symbols, table)
     }
 }
@@ -398,17 +426,21 @@ pub fn get_tokens(equation: &str) -> Vec<Token> {
 
 pub fn calcualte_from_tokens(
     tokens: Vec<Token>,
-    symbols: &HashMap<String, Result>,
+    symbols: &mut HashMap<String, CalculatorValue>,
     table: &Table,
-) -> Result {
+) -> Result<CalculatorValue, u8> {
     let mut parser = Parser::new(tokens);
     let tree = parser.build_tree();
     let int = Interpreter::new(tree);
-    let val = int.interpret(&symbols, table);
+    let val = int.interpret(symbols, table);
     return val;
 }
 
-pub fn calculate(equation: &str, symbols: &HashMap<String, Result>, table: &Table) -> Result {
+pub fn calculate(
+    equation: &str,
+    symbols: &mut HashMap<String, CalculatorValue>,
+    table: &Table,
+) -> Result<CalculatorValue, u8> {
     let toks = get_tokens(equation);
     return calcualte_from_tokens(toks, symbols, table);
 }

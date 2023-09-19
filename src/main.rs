@@ -185,12 +185,32 @@ fn handle_normal_mode(program: &mut Program, key: KeySequence) {
             }
         }
         "d" => {
-            let row = program.table.get_pos().row;
-            program.table.remove_row(row);
+            let mut row = program.table.get_pos().row;
+            let count = if key.count >= program.table.get_size()[0] {
+                program.table.get_size()[0]
+            } else {
+                key.count
+            };
+            for _ in 0..count {
+                if row >= program.table.get_size()[0] {
+                    row -= 1;
+                }
+                program.table.remove_row(row);
+            }
         }
         "D" => {
-            let col = program.table.get_pos().col;
-            program.table.remove_col(col);
+            let mut col = program.table.get_pos().col;
+            let count = if key.count >= program.table.get_size()[1] {
+                program.table.get_size()[1]
+            } else {
+                key.count
+            };
+            for _ in 0..count {
+                if col >= program.table.get_size()[1] {
+                    col -= 1;
+                }
+                program.table.remove_col(col);
+            }
         }
         "w" => {
             let sheet = program.table.to_sheet();

@@ -410,7 +410,6 @@ impl Interpreter {
         if let Some(CalculatorValue::Number(n)) = rec_count {
             *n += 1.0;
             if *n > RECURSION_LIMIT{
-                eprintln!("rec: {:?}", rec_count);
                 return Err(1)
             }
         }

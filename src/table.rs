@@ -427,7 +427,7 @@ impl Table {
         for i in col_slice[0]..col_slice[1] {
             text += &format!(
                 "{:^max_width$}",
-                base_10_to_col_num(i),
+                base_10_to_col_num(i + 1),
                 max_width = self.column_sizes[i]
             );
         }

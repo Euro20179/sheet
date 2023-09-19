@@ -1,11 +1,9 @@
-use std::{fs, str::Chars};
+use std::str::Chars;
 
 #[derive(Clone, Debug)]
 pub enum Token {
     LBracket,
     RBracket,
-    LParen,
-    RParen,
     String(String),
     Expr(String),
     Number(f64),
@@ -101,15 +99,15 @@ pub fn parse(contents: &str) -> Vec<Token> {
             break;
         } else if let Some(ch) = lexer.cur_char {
             let tok = match ch {
-                ' ' | '\n' | '\t' | '\r' => {
-                    lexer.next();
-                    continue;
-                }
                 ']' => Token::RBracket,
                 '[' => Token::LBracket,
                 ',' => Token::Comma,
                 '(' => Token::Expr(parse_expr(&mut lexer)),
                 '"' => Token::String(parse_string(&mut lexer)),
+                ' ' | '\n' | '\t' | '\r' => {
+                    lexer.next();
+                    continue;
+                }
                 '0'..='9' => {
                     let tok = Token::Number(parse_number(&mut lexer));
                     lexer.add_token(tok);

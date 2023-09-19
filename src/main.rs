@@ -3,10 +3,7 @@ mod position_parser;
 mod sheet_tokenizer;
 mod table;
 
-use std::{
-    collections::HashMap,
-    io::{Read, Stdin},
-};
+use std::io::{Read, Stdin};
 
 use base64::{engine, prelude::*};
 
@@ -297,7 +294,6 @@ fn main() {
 
     let file_name: Option<String> = args.next();
 
-
     let file_type = args.next().unwrap_or("tsheet".to_string());
 
     if let None = file_name {
@@ -325,8 +321,7 @@ fn main() {
         let toks = sheet_tokenizer::parse(text.as_str());
 
         table = Table::from_sheet_tokens(toks);
-    }
-    else {
+    } else {
         table = Table::from_csv(&text, ',');
     }
 

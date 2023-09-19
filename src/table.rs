@@ -443,8 +443,8 @@ impl Table {
 
     pub fn display(&self, max_width: usize, do_equations: bool) -> String {
         let mut text = format!("{:<max_width$}", " ", max_width = max_width);
-        let row_slice = self.find_displayable_rows(30);
-        let col_slice = self.find_displayable_cols(6);
+        let row_slice = self.find_displayable_rows(30); //TODO: make this not hardcoded
+        let col_slice = self.find_displayable_cols(6); //TODO: make this not hardcoded
         let mut row_no = row_slice[0];
         for i in col_slice[0]..col_slice[1] {
             text += &format!(
@@ -558,6 +558,41 @@ impl Table {
                     row.push(Data::Number("0".to_string()));
                 }
             }
+        }
+    }
+
+    //TODO: add from_csv
+
+    pub fn from_csv(text: &str) -> Table {
+        let mut rows: Vec<Vec<Data>> = vec![];
+        let mut cur_row: Vec<Data> = vec![];
+        let mut cur_item: String = String::new();
+        for ch in text.chars() {
+            if ch == ',' {
+                cur_row.push(Data::String(cur_item));
+                cur_item = String::new();
+            } else if ch == '\n' {
+                cur_row.push(Data::String(cur_item));
+                rows.push(cur_row);
+                cur_row = vec![];
+                cur_item = String::new();
+            } else {
+                cur_item += &String::from(ch);
+            }
+        }
+        cur_row.push(Data::String(cur_item));
+        rows.push(cur_row);
+        eprintln!("{:?}", rows);
+        let mut column_sizes: Vec<usize> = vec![];
+        for _ in 0..rows.len() {
+            column_sizes.push(10);
+        }
+        let columns = Table::build_columns_from_rows(&rows);
+        Table {
+            rows,
+            column_sizes,
+            columns,
+            current_pos: Position { row: 0, col: 0 },
         }
     }
 

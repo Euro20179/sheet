@@ -266,6 +266,7 @@ fn main() {
 
     let mut table = Table::from_sheet_tokens(toks);
 
+    // let mut table = Table::from_csv("hi,yes\n1,2");
     let mut program = Program {
         table: &mut table,
         file_path: fp,

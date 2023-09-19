@@ -445,7 +445,7 @@ impl Table {
             );
             for item in &row[col_slice[0]..col_slice[1]] {
                 let display_text =
-                    item.display(self, self.column_sizes[col_no], do_equations, true);
+                    item.display(self, self.column_sizes[col_no], do_equations, self.is_current_pos(row_no, col_no));
                 text += &(if self.is_current_pos(row_no, col_no) {
                     format!("\x1b[7m{}\x1b[0m", display_text)
                 } else {

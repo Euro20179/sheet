@@ -17,27 +17,13 @@ pub fn base_26_to_10(n: String) -> usize {
 }
 
 pub fn base_10_to_col_num(mut n: usize) -> String {
-    if n < 26 {
-        return String::from((n + 65) as u8 as char);
+    let mut col_name: String = String::new();
+    while n > 0 {
+        let modulo = (n - 1) % 26;
+        col_name = String::from(('A' as u8 + modulo as u8) as char) + &col_name;
+        n = (n-modulo) / 26;
     }
-
-    let mut ans = String::new();
-    let mut place = 0;
-    while n >= 26 {
-        if place > 0 {
-            ans += &String::from(((n % 26) + 64) as u8 as char);
-        } else {
-            ans += &String::from(((n % 26) + 65) as u8 as char);
-        }
-        n /= 26;
-        place += 1;
-    }
-    if place > 0 {
-        ans += &String::from(((n % 26) + 64) as u8 as char);
-    } else {
-        ans += &String::from(((n % 26) + 65) as u8 as char);
-    }
-    return ans.chars().rev().collect();
+    return col_name;
 }
 
 #[derive(Debug, Clone)]
@@ -560,8 +546,6 @@ impl Table {
             }
         }
     }
-
-    //TODO: add from_csv
 
     pub fn from_csv(text: &str, seperator: char) -> Table {
         let mut rows: Vec<Vec<Data>> = vec![];

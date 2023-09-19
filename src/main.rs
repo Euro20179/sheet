@@ -282,7 +282,6 @@ fn main() {
             _ => true,
         };
         println!("{}", program.table.display(10, do_equations));
-        //TODO: detect multi-char keys eg: ^[A
         let key_sequence = get_key(&program, &mut reader, false);
         //TODO: add detection for if the file is saved
         if key_sequence.action == 'q' && program.mode == Mode::Normal {

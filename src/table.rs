@@ -373,20 +373,20 @@ impl Table {
     }
 
     pub fn cursor_pos_is_empty(&self) -> bool {
-        if let Data::String(s) = &self.columns[self.current_pos.col][self.current_pos.row] {
-            if s == "" {
-                return true;
-            }
+        match &self.columns[self.current_pos.col][self.current_pos.row] {
+            Data::String(s) | Data::Equation(s, ..) => {
+                if s == "" {
+                    return true;
+                }
+                return false;
+            },
+            _ => return false
         }
-        return false;
     }
 
     pub fn convert_cell(&mut self, pos: &Position, t: Data) {
-        self.columns[pos.col][pos.row] = match t {
-            Data::String(..) => Data::String(String::from("")),
-            Data::Number(..) => Data::Number(String::from("0")),
-            Data::Equation(..) => Data::Equation(String::from(""), None),
-        }
+        self.rows[pos.row][pos.col] = t.clone();
+        self.columns[pos.col][pos.row] = t;
     }
 
     fn find_displayable_rows(&self, rows_to_view: usize) -> [usize; 2] {

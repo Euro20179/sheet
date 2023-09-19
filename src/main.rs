@@ -3,7 +3,7 @@ mod position_parser;
 mod sheet_tokenizer;
 mod table;
 
-use std::io::{Read, Stdin};
+use std::{collections::HashMap, io::{Read, Stdin}};
 
 use base64::{engine, prelude::*};
 
@@ -216,11 +216,15 @@ fn main() {
     //     "{:?}",
     //     int.interpret(
     //         &symbols,
-    //         &Table::from_tokens(vec![
+    //         &Table::from_sheet_tokens(vec![
     //             sheet_tokenizer::Token::LBracket,
     //             sheet_tokenizer::Token::Number(3.0),
     //             sheet_tokenizer::Token::Number(3.0),
-    //             sheet_tokenizer::Token::RBracket
+    //             sheet_tokenizer::Token::RBracket,
+    //             sheet_tokenizer::Token::LBracket,
+    //             sheet_tokenizer::Token::Number(3.0),
+    //             sheet_tokenizer::Token::Number(5.0),
+    //             sheet_tokenizer::Token::RBracket,
     //         ])
     //     )
     // );

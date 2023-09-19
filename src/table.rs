@@ -151,6 +151,10 @@ impl Table {
         return self.current_pos;
     }
 
+    pub fn get_size(&self) -> [usize; 2] {
+        return [self.rows.len(), self.columns.len()]
+    }
+
     pub fn add_row(&mut self, row_no: usize) {
         let mut row: Vec<Data> = vec![];
         self.pad_row(&mut row);

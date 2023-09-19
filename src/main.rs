@@ -3,13 +3,16 @@ mod position_parser;
 mod sheet_tokenizer;
 mod table;
 
-use std::{collections::HashMap, io::{Read, Stdin}};
+use std::{
+    collections::HashMap,
+    io::{Read, Stdin},
+};
 
 use base64::{engine, prelude::*};
 
 use termios::{tcsetattr, Termios, ECHO, ICANON, TCSANOW};
 
-use table::Table;
+use table::{Position, Table};
 
 use crate::table::Direction;
 
@@ -66,14 +69,68 @@ fn handle_normal_mode(program: &mut Program, key: KeySequence) {
                 .set_cursor_pos(row_num - 1, table::base_26_to_10(col))
         }
         "y" => {
-            let data = program
-                .table
-                .get_value_at_position(&program.table.get_pos());
-            let s = match data {
-                table::Data::Number(n) | table::Data::Equation(n, ..) | table::Data::String(n) => n,
-            };
-            let encoded = engine::general_purpose::STANDARD.encode(s);
-            print!("\x1b]52;c;{}\x07", encoded)
+            let mut reader = std::io::stdin();
+            let direction = get_key(program, &mut reader, false);
+            match direction.action {
+                'l' | 'h' => {
+                    let pos = program.table.get_pos();
+                    let start = Position {
+                        row: pos.row,
+                        col: 0,
+                    };
+                    let end = Position {
+                        row: pos.row,
+                        col: program.table.get_size()[1],
+                    };
+                    let row = program.table.get_values_at_range(&start, &end);
+                    let mut s = String::new();
+                    for d in row {
+                        let temp = match d {
+                            table::Data::Number(n)
+                            | table::Data::Equation(n, ..)
+                            | table::Data::String(n) => n,
+                        };
+                        s += &(temp + &String::from("\t"));
+                    }
+                    let encoded = engine::general_purpose::STANDARD.encode(s);
+                    print!("\x1b]52;c;{}\x07", encoded)
+                }
+                'k' | 'j' => {
+                    let pos = program.table.get_pos();
+                    let start = Position {
+                        row: 0,
+                        col: pos.col,
+                    };
+                    let end = Position {
+                        row: program.table.get_size()[0],
+                        col: 0,
+                    };
+                    let row = program.table.get_values_at_range(&start, &end);
+                    let mut s = String::new();
+                    for d in row {
+                        let temp = match d {
+                            table::Data::Number(n)
+                            | table::Data::Equation(n, ..)
+                            | table::Data::String(n) => n,
+                        };
+                        s += &(temp + &String::from("\t"));
+                    }
+                    let encoded = engine::general_purpose::STANDARD.encode(s);
+                    print!("\x1b]52;c;{}\x07", encoded)
+                }
+                _ => {
+                    let data = program
+                        .table
+                        .get_value_at_position(&program.table.get_pos());
+                    let s = match data {
+                        table::Data::Number(n)
+                        | table::Data::Equation(n, ..)
+                        | table::Data::String(n) => n,
+                    };
+                    let encoded = engine::general_purpose::STANDARD.encode(s);
+                    print!("\x1b]52;c;{}\x07", encoded)
+                }
+            }
         }
         "s" => {
             program.table.clear_cell(&program.table.get_pos());
@@ -94,7 +151,7 @@ fn handle_normal_mode(program: &mut Program, key: KeySequence) {
         }
         "\x1b[C" | "l" => {
             for _ in 0..key.count {
-                if program.table.cursor_at_right(){
+                if program.table.cursor_at_right() {
                     program.table.add_col(program.table.get_pos().col + 1);
                 }
                 program.table.move_cursor(Direction::Right);
@@ -188,7 +245,7 @@ fn get_key(program: &Program, reader: &mut Stdin, accept_count: bool) -> KeySequ
         let key = String::from_utf8(buf[0..bytes_read].to_vec()).unwrap();
         let ch = buf[0];
 
-        if ch >= 48 && ch <= 57 && program.mode == Mode::Normal && accept_count{
+        if ch >= 48 && ch <= 57 && program.mode == Mode::Normal && accept_count {
             count += &String::from(ch as char);
         } else {
             if count == "" {

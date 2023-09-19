@@ -71,6 +71,7 @@ fn handle_normal_mode(program: &mut Program, key: KeySequence) {
         "y" => {
             let mut reader = std::io::stdin();
             let direction = get_key(program, &mut reader, false);
+            let mut s: String = String::new();
             match direction.action {
                 'l' | 'h' => {
                     let pos = program.table.get_pos();
@@ -83,7 +84,6 @@ fn handle_normal_mode(program: &mut Program, key: KeySequence) {
                         col: program.table.get_size()[1],
                     };
                     let row = program.table.get_values_at_range(&start, &end);
-                    let mut s = String::new();
                     for d in row {
                         let temp = match d {
                             table::Data::Number(n)
@@ -92,8 +92,6 @@ fn handle_normal_mode(program: &mut Program, key: KeySequence) {
                         };
                         s += &(temp + &String::from("\t"));
                     }
-                    let encoded = engine::general_purpose::STANDARD.encode(s);
-                    print!("\x1b]52;c;{}\x07", encoded)
                 }
                 'k' | 'j' => {
                     let pos = program.table.get_pos();
@@ -106,7 +104,6 @@ fn handle_normal_mode(program: &mut Program, key: KeySequence) {
                         col: 0,
                     };
                     let row = program.table.get_values_at_range(&start, &end);
-                    let mut s = String::new();
                     for d in row {
                         let temp = match d {
                             table::Data::Number(n)
@@ -115,22 +112,20 @@ fn handle_normal_mode(program: &mut Program, key: KeySequence) {
                         };
                         s += &(temp + &String::from("\t"));
                     }
-                    let encoded = engine::general_purpose::STANDARD.encode(s);
-                    print!("\x1b]52;c;{}\x07", encoded)
                 }
                 _ => {
                     let data = program
                         .table
                         .get_value_at_position(&program.table.get_pos());
-                    let s = match data {
+                    s = match data {
                         table::Data::Number(n)
                         | table::Data::Equation(n, ..)
                         | table::Data::String(n) => n,
                     };
-                    let encoded = engine::general_purpose::STANDARD.encode(s);
-                    print!("\x1b]52;c;{}\x07", encoded)
                 }
             }
+            let encoded = engine::general_purpose::STANDARD.encode(s);
+            print!("\x1b]52;c;{}\x07", encoded)
         }
         "s" => {
             program.table.clear_cell(&program.table.get_pos());

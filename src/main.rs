@@ -297,6 +297,9 @@ fn main() {
 
     let file_name: Option<String> = args.next();
 
+
+    let file_type = args.next().unwrap_or("tsheet".to_string());
+
     if let None = file_name {
         eprintln!("No file name given");
     }
@@ -318,7 +321,7 @@ fn main() {
     }
 
     let mut table: Table;
-    if !fp.as_str().ends_with(".csv") {
+    if file_type != "csv" {
         let toks = sheet_tokenizer::parse(text.as_str());
 
         table = Table::from_sheet_tokens(toks);

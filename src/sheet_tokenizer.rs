@@ -50,8 +50,8 @@ fn parse_string(lexer: &mut Lexer) -> String {
     return str;
 }
 
-fn parse_number(lexer: &mut Lexer, start_char: char) -> f64 {
-    let mut text = start_char.to_string();
+fn parse_number(lexer: &mut Lexer) -> f64 {
+    let mut text = lexer.get_cur_char().unwrap().to_string();
     let mut is_dec = false;
     while let Some(char) = lexer.next() {
         if char == '.' && !is_dec {
@@ -94,36 +94,31 @@ pub fn parse(contents: &str) -> Vec<Token> {
         cur_char: None,
     };
 
-    //number eats 1 character too far, after the call to parse_number, do not call lexer.next
-    let mut get_next = true;
+    lexer.next();
+
     loop {
-        let cur_char: Option<char>;
-        if get_next {
-            cur_char = lexer.next();
-        } else if let Some(ch) = lexer.get_cur_char() {
-            get_next = true;
-            cur_char = Some(ch);
-        } else {
+        if let None = lexer.cur_char {
             break;
-        }
-        match cur_char {
-            None => break,
-            Some(char) => {
-                let tok = match char {
-                    ' ' | '\n' | '\t' | '\r' => continue,
-                    ']' => Token::RBracket,
-                    '[' => Token::LBracket,
-                    '(' => Token::Expr(parse_expr(&mut lexer)),
-                    '"' => Token::String(parse_string(&mut lexer)),
-                    ',' => Token::Comma,
-                    '0'..='9' => {
-                        get_next = false;
-                        Token::Number(parse_number(&mut lexer, char))
-                    }
-                    _ => Token::Err(char),
-                };
-                lexer.add_token(tok);
-            }
+        } else if let Some(ch) = lexer.cur_char {
+            let tok = match ch {
+                ' ' | '\n' | '\t' | '\r' => {
+                    lexer.next();
+                    continue;
+                }
+                ']' => Token::RBracket,
+                '[' => Token::LBracket,
+                ',' => Token::Comma,
+                '(' => Token::Expr(parse_expr(&mut lexer)),
+                '"' => Token::String(parse_string(&mut lexer)),
+                '0'..='9' => {
+                    let tok = Token::Number(parse_number(&mut lexer));
+                    lexer.add_token(tok);
+                    continue;
+                }
+                _ => Token::Err(ch),
+            };
+            lexer.add_token(tok);
+            lexer.next();
         }
     }
 

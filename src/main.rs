@@ -346,7 +346,7 @@ fn main() {
             _ => true,
         };
         println!("{}", program.table.display(10, do_equations));
-        let key_sequence = get_key(&program, &mut reader, false);
+        let key_sequence = get_key(&program, &mut reader, true);
         //TODO: add detection for if the file is saved
         if key_sequence.action == 'q' && program.mode == Mode::Normal {
             break;

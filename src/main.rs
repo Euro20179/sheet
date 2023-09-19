@@ -330,7 +330,6 @@ fn main() {
         table = Table::from_csv(&text, ',');
     }
 
-    // let mut table = Table::from_csv("hi,yes\n1,2");
     let mut program = Program {
         table: &mut table,
         file_path: fp,

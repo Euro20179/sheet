@@ -557,10 +557,18 @@ impl Table {
         let mut cur_item: String = String::new();
         for ch in text.chars() {
             if ch == seperator {
-                cur_row.push(Data::String(cur_item));
+                if let Ok(n) = cur_item.parse::<f64>() {
+                    cur_row.push(Data::Number(n.to_string()))
+                } else {
+                    cur_row.push(Data::String(cur_item));
+                }
                 cur_item = String::new();
             } else if ch == '\n' {
-                cur_row.push(Data::String(cur_item));
+                if let Ok(n) = cur_item.parse::<f64>() {
+                    cur_row.push(Data::Number(n.to_string()))
+                } else {
+                    cur_row.push(Data::String(cur_item));
+                }
                 rows.push(cur_row);
                 cur_row = vec![];
                 cur_item = String::new();
@@ -568,7 +576,11 @@ impl Table {
                 cur_item += &String::from(ch);
             }
         }
-        cur_row.push(Data::String(cur_item));
+        if let Ok(n) = cur_item.parse::<f64>() {
+            cur_row.push(Data::Number(n.to_string()))
+        } else {
+            cur_row.push(Data::String(cur_item));
+        }
         if rows.len() > 0 {
             if cur_row.len() == rows[0].len() + 1 {
                 //only append if it would make all rows equal size

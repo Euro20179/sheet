@@ -50,7 +50,7 @@ fn handle_equation(
 ) -> Result<String, &'static str> {
     let map: HashMap<String, calculator::Result> = HashMap::new();
 
-    let ans = match calculate(expr.to_owned(), &map, table) {
+    let ans = match calculate(expr, &map, table) {
         calculator::Result::String(s) => s.to_string(),
         calculator::Result::Number(n) => n.to_string(),
         calculator::Result::Range(x, y) => format!("{:?}..{:?}", x, y),

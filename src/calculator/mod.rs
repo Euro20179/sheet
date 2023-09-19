@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, str::Chars};
 
 use crate::table::{self, Data, Position, Table};
 
@@ -17,42 +17,30 @@ pub enum Token {
 }
 
 #[derive(Debug)]
-pub struct Lexer {
-    cur_pos: usize,
-    cur_char: char,
-    content: String,
+pub struct Lexer<'a> {
+    cur_char: Option<char>,
+    chars: Chars<'a>,
 }
 
-impl Lexer {
-    pub fn new(content: String) -> Lexer {
+impl Lexer<'_> {
+    pub fn new<'a>(content: &'a str) -> Lexer<'a> {
+        let chars = content.chars();
         Lexer {
-            cur_char: content.chars().nth(0).unwrap_or(' '),
-            cur_pos: 0,
-            content,
+            cur_char: None,
+            chars,
         }
     }
 
-    fn back(&mut self) {
-        if self.cur_pos > 0 {
-            self.cur_pos -= 1;
-            self.cur_char = self.content.chars().nth(self.cur_pos).unwrap();
-        }
-    }
-    fn next(&mut self) -> bool {
-        self.cur_pos += 1;
-
-        if self.cur_pos >= self.content.len() {
-            return false;
-        }
-        self.cur_char = self.content.chars().nth(self.cur_pos).unwrap();
-        return true;
+    fn next(&mut self) -> Option<char> {
+        self.cur_char = self.chars.next();
+        return self.cur_char;
     }
 
     fn build_number(&mut self) -> f64 {
-        let mut text = self.cur_char.to_string();
+        let mut text = self.cur_char.unwrap().to_string();
         let mut is_dec = false;
-        while self.next() {
-            let char = self.cur_char;
+        while let Some(ch) = self.next() {
+            let char = ch;
             if char == '.' && !is_dec {
                 is_dec = true;
             } else if char == '.' {
@@ -66,55 +54,63 @@ impl Lexer {
             text += &char.to_string();
         }
 
-        self.back();
-
         let n: f64 = text.parse().expect("Could not parse number");
         return n;
     }
 
     fn build_ident(&mut self) -> String {
-        let mut ident = self.cur_char.to_string();
-        while self.next()
-            && match self.cur_char {
-                'A'..='Z' | 'a'..='z' | '0'..='9' | '_' => true,
-                _ => false,
+        let mut ident = self.cur_char.unwrap().to_string();
+        while let Some(ch) = self.next(){
+            match ch {
+                'A'..='Z' | 'a'..='z' | '0'..='9' | '_' => {
+                    ident += &String::from(ch);
+                }
+                _ => break
             }
-        {
-            ident += &String::from(self.cur_char);
         }
-        self.back();
         return ident;
     }
 
     pub fn tokenize(&mut self) -> Vec<Token> {
         let mut tokens: Vec<Token> = vec![];
+        self.next();
         loop {
-            let tok = match self.cur_char {
-                '+' => Token::Plus,
-                '-' => Token::Minus,
-                '*' => Token::Star,
-                '/' => Token::Div,
-                ')' => Token::RParen,
-                '(' => Token::LParen,
-                '$' => Token::Ident(self.build_ident()),
-                ':' => Token::Colon,
-                ',' => Token::Comma,
-                '0'..='9' => Token::Number(self.build_number()),
-                ' ' | '\t' | '\n' => {
-                    if !self.next() {
-                        break;
-                    }
-                    continue;
-                }
-                'A'..='Z' | 'a'..='z' | '_' => Token::Ident(self.build_ident()),
-                _ => Token::Number(0.0),
-            };
-
-            tokens.push(tok);
-
-            if !self.next() {
+            if let None = self.cur_char {
                 break;
+            } else if let Some(ch) = self.cur_char {
+                let tok = match ch {
+                    '+' => Token::Plus,
+                    '-' => Token::Minus,
+                    '*' => Token::Star,
+                    '/' => Token::Div,
+                    ')' => Token::RParen,
+                    '(' => Token::LParen,
+                    '$' => {
+                        let tok = Token::Ident(self.build_ident());
+                        tokens.push(tok);
+                        continue;
+                    },
+                    ':' => Token::Colon,
+                    ',' => Token::Comma,
+                    '0'..='9' => {
+                        let tok = Token::Number(self.build_number());
+                        tokens.push(tok);
+                        continue;
+                    },
+                    ' ' | '\t' | '\n' => {
+                        self.next();
+                        continue;
+                    }
+                    'A'..='Z' | 'a'..='z' | '_' => {
+                        let tok = Token::Ident(self.build_ident());
+                        tokens.push(tok);
+                        continue;
+                    },
+                    _ => Token::Number(0.0),
+                };
+                tokens.push(tok);
             }
+            self.next();
         }
         return tokens;
     }
@@ -145,8 +141,7 @@ impl Node {
 
                 if fn_name == "rand" {
                     return Result::Number(rand::random());
-                }
-                else if fn_name == "sum" {
+                } else if fn_name == "sum" {
                     let mut sum = 0.0;
                     for value in values {
                         sum += value.to_f64(symbols, table);
@@ -172,9 +167,9 @@ impl Node {
                                         table::Data::Equation(e, cache) => {
                                             if let Some(r) = cache {
                                                 sum += r.to_f64(symbols, table);
-                                            }
-                                            else {
-                                                sum += calculate(e, symbols, table).to_f64(symbols, table);
+                                            } else {
+                                                sum += calculate(&e, symbols, table)
+                                                    .to_f64(symbols, table);
                                             }
                                             real_count += 1;
                                         }
@@ -204,7 +199,7 @@ impl Node {
                         Data::String(a) => Result::String(a),
                         Data::Equation(e, _cache) => {
                             //FIXME: can be infinitely recursive when self referencing occurs
-                            return calculate(e, symbols, table);
+                            return calculate(&e, symbols, table);
                         }
                     };
                     return res_value;
@@ -369,11 +364,10 @@ impl Result {
                         table::Data::Equation(e, cache) => {
                             if let Some(r) = cache {
                                 sum += r.to_f64(symbols, table);
+                            } else {
+                                sum += calculate(&e, symbols, table).to_f64(symbols, table)
                             }
-                            else {
-                                sum += calculate(e, symbols, table).to_f64(symbols, table)
-                            }
-                        },
+                        }
                     }
                 }
                 return sum;
@@ -396,7 +390,7 @@ impl Interpreter {
     }
 }
 
-pub fn get_tokens(equation: String) -> Vec<Token> {
+pub fn get_tokens(equation: &str) -> Vec<Token> {
     let mut lexer = Lexer::new(equation);
     let toks = lexer.tokenize();
     return toks;
@@ -414,7 +408,7 @@ pub fn calcualte_from_tokens(
     return val;
 }
 
-pub fn calculate(equation: String, symbols: &HashMap<String, Result>, table: &Table) -> Result {
+pub fn calculate(equation: &str, symbols: &HashMap<String, Result>, table: &Table) -> Result {
     let toks = get_tokens(equation);
     return calcualte_from_tokens(toks, symbols, table);
 }

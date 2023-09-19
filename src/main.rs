@@ -256,7 +256,7 @@ fn get_key(program: &Program, reader: &mut Stdin, accept_count: bool) -> KeySequ
 }
 
 fn main() {
-    // let mut lexer = calculator::Lexer::new("sum($a1:$b1)/2".to_string());
+    // let mut lexer = calculator::Lexer::new("sum($a1:$b1)/2");
     // let toks = lexer.tokenize();
     // println!("{:?}", toks);
     // let mut parser = calculator::Parser::new(toks);

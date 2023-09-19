@@ -2,7 +2,11 @@ use std::collections::HashMap;
 
 macro_rules! IF {
     ($e:expr, true=>  $t:expr, false=> $f:expr) => {
-        if $e { $t } else { $f }
+        if $e {
+            $t
+        } else {
+            $f
+        }
     };
 }
 
@@ -505,10 +509,10 @@ impl Table {
         for i in 0..largest_row {
             let mut cur_col: Vec<Data> = vec![];
             for row in rows {
-                IF!(i >= row.len(),
-                    true => cur_col.push(Data::Number("0".to_string())),
-                    false => cur_col.push(row[i].clone())
-                );
+                cur_col.push(IF!(i >= row.len(),
+                    true => Data::Number("0".to_string()),
+                    false => row[i].clone()
+                ));
             }
             columns.push(cur_col);
         }

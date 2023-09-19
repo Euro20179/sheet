@@ -563,12 +563,12 @@ impl Table {
 
     //TODO: add from_csv
 
-    pub fn from_csv(text: &str) -> Table {
+    pub fn from_csv(text: &str, seperator: char) -> Table {
         let mut rows: Vec<Vec<Data>> = vec![];
         let mut cur_row: Vec<Data> = vec![];
         let mut cur_item: String = String::new();
         for ch in text.chars() {
-            if ch == ',' {
+            if ch == seperator {
                 cur_row.push(Data::String(cur_item));
                 cur_item = String::new();
             } else if ch == '\n' {

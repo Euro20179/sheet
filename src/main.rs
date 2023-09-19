@@ -293,10 +293,9 @@ fn main() {
 
     let mut args = std::env::args();
 
-    let mut file_name: Option<String> = None;
-    if args.len() > 1 {
-        file_name = args.nth(1);
-    }
+    let _progname = args.next();
+
+    let file_name: Option<String> = args.next();
 
     if let None = file_name {
         eprintln!("No file name given");
@@ -318,9 +317,15 @@ fn main() {
         text = t;
     }
 
-    let toks = sheet_tokenizer::parse(text.as_str());
+    let mut table: Table;
+    if !fp.as_str().ends_with(".csv") {
+        let toks = sheet_tokenizer::parse(text.as_str());
 
-    let mut table = Table::from_sheet_tokens(toks);
+        table = Table::from_sheet_tokens(toks);
+    }
+    else {
+        table = Table::from_csv(&text, ',');
+    }
 
     // let mut table = Table::from_csv("hi,yes\n1,2");
     let mut program = Program {

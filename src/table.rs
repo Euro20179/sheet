@@ -569,8 +569,12 @@ impl Table {
             }
         }
         cur_row.push(Data::String(cur_item));
-        rows.push(cur_row);
-        eprintln!("{:?}", rows);
+        if rows.len() > 0 {
+            if cur_row.len() == rows[0].len() + 1 {
+                //only append if it would make all rows equal size
+                rows.push(cur_row)
+            }
+        }
         let mut column_sizes: Vec<usize> = vec![];
         for _ in 0..rows.len() {
             column_sizes.push(10);

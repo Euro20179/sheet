@@ -1,5 +1,11 @@
 use std::collections::HashMap;
 
+macro_rules! IF {
+    ($e:expr, true=>  $t:expr, false=> $f:expr) => {
+        if $e { $t } else { $f }
+    };
+}
+
 use crate::{
     calculator::{self, calculate},
     position_parser, sheet_tokenizer,
@@ -21,7 +27,7 @@ pub fn base_10_to_col_num(mut n: usize) -> String {
     while n > 0 {
         let modulo = (n - 1) % 26;
         col_name = String::from(('A' as u8 + modulo as u8) as char) + &col_name;
-        n = (n-modulo) / 26;
+        n = (n - modulo) / 26;
     }
     return col_name;
 }
@@ -51,11 +57,10 @@ fn handle_equation(
 impl Data {
     fn display_number(&self, n: &str, max_width: usize, is_hovered: bool) -> String {
         let new_text = n.to_owned();
-        if n.len() > max_width && !is_hovered {
-            return new_text[0..max_width].to_string();
-        } else {
-            return format!("{:<max_width$}", new_text, max_width = max_width);
-        }
+        return IF!(n.len() > max_width && !is_hovered,
+            true=> new_text[0..max_width].to_string(),
+            false=> format!("{:<max_width$}", new_text, max_width = max_width)
+        );
     }
 
     fn display_equation(
@@ -152,7 +157,7 @@ impl Table {
     }
 
     pub fn get_size(&self) -> [usize; 2] {
-        return [self.rows.len(), self.columns.len()]
+        return [self.rows.len(), self.columns.len()];
     }
 
     pub fn add_row(&mut self, row_no: usize) {
@@ -383,8 +388,8 @@ impl Table {
                     return true;
                 }
                 return false;
-            },
-            _ => return false
+            }
+            _ => return false,
         }
     }
 
@@ -444,13 +449,13 @@ impl Table {
                 max_width = max_width
             );
             for item in &row[col_slice[0]..col_slice[1]] {
+                let is_selected = self.is_current_pos(row_no, col_no);
                 let display_text =
-                    item.display(self, self.column_sizes[col_no], do_equations, self.is_current_pos(row_no, col_no));
-                text += &(if self.is_current_pos(row_no, col_no) {
-                    format!("\x1b[7m{}\x1b[0m", display_text)
-                } else {
-                    display_text
-                });
+                    item.display(self, self.column_sizes[col_no], do_equations, is_selected);
+                text += &(IF!(is_selected,
+                    true => format!("\x1b[7m{}\x1b[0m", display_text),
+                    false => display_text
+                ));
                 col_no += 1;
             }
             text += &"\n".to_owned();
@@ -500,11 +505,10 @@ impl Table {
         for i in 0..largest_row {
             let mut cur_col: Vec<Data> = vec![];
             for row in rows {
-                if i >= row.len() {
-                    cur_col.push(Data::Number("0".to_string()));
-                } else {
-                    cur_col.push(row[i].clone());
-                }
+                IF!(i >= row.len(),
+                    true => cur_col.push(Data::Number("0".to_string())),
+                    false => cur_col.push(row[i].clone())
+                );
             }
             columns.push(cur_col);
         }

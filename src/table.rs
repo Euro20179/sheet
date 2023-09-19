@@ -151,12 +151,8 @@ impl Table {
         return self.current_pos;
     }
 
-    pub fn add_row(&mut self, mut row_no: usize) {
+    pub fn add_row(&mut self, row_no: usize) {
         let mut row: Vec<Data> = vec![];
-        if self.rows.len() == 0 {
-            self.rows = vec![];
-            row_no = 0;
-        }
         self.pad_row(&mut row);
         self.rows.insert(row_no, row);
 
@@ -165,12 +161,8 @@ impl Table {
         }
     }
 
-    pub fn add_col(&mut self, mut col_no: usize) {
+    pub fn add_col(&mut self, col_no: usize) {
         let mut col: Vec<Data> = vec![];
-        if self.columns.len() == 0 {
-            self.columns = vec![];
-            col_no -= 1;
-        }
         self.pad_col(&mut col);
         self.columns.insert(col_no, col);
         self.column_sizes.insert(col_no, 10);

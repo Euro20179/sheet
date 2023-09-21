@@ -4,6 +4,12 @@ use crate::table::{self, Data, Position, Table};
 
 static RECURSION_LIMIT: f64 = 1000.0;
 
+#[derive(Debug)]
+pub enum CalculatorError {
+    RecursionLimit,
+    InvalidBinaryOp(Operation)
+}
+
 #[derive(Debug, Clone)]
 pub enum Token {
     Plus,
@@ -147,7 +153,7 @@ impl Lexer<'_> {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum Operation {
     Mul,
     Div,
@@ -170,7 +176,7 @@ impl Node {
         &self,
         symbols: &mut HashMap<String, CalculatorValue>,
         table: &Table,
-    ) -> Result<CalculatorValue, u8> {
+    ) -> Result<CalculatorValue, CalculatorError> {
         match self {
             Node::Call(fn_name, nodes) => {
                 let mut values: Vec<CalculatorValue> = vec![];
@@ -262,39 +268,66 @@ impl Node {
 
                 eprintln!("Left: {:?}, right: {:?}", left, right);
 
-                match left_val {
-                    Ok(CalculatorValue::Number(n)) => match right_val {
-                        Ok(CalculatorValue::Number(n2)) => match op {
-                            Operation::Mul => Ok(CalculatorValue::Number(n * n2)),
-                            Operation::Div => Ok(CalculatorValue::Number(n / n2)),
-                            Operation::Plus => Ok(CalculatorValue::Number(n + n2)),
-                            Operation::Minus => Ok(CalculatorValue::Number(n - n2)),
-                        },
-                        _ => Ok(CalculatorValue::Number(0.0)),
-                    },
-                    Ok(CalculatorValue::String(s)) => match right_val {
-                        Ok(CalculatorValue::String(s2)) => match op {
-                            Operation::Plus => Ok(CalculatorValue::String(s + &s2)),
-                            _ => Ok(CalculatorValue::String("".to_string())),
-                        },
-                        Ok(CalculatorValue::Number(n)) => match op {
-                            Operation::Mul => {
-                                if n < 1.0 {
-                                    Ok(CalculatorValue::String("".to_string()))
-                                } else {
-                                    let mut text = s.clone();
-                                    for _ in 1..(n as i32) {
-                                        text += &s;
-                                    }
-                                    Ok(CalculatorValue::String(text))
-                                }
-                            }
-                            _ => Ok(CalculatorValue::String("".to_string())),
-                        },
-                        _ => Ok(CalculatorValue::String("".to_string())),
+                match (left_val, right_val) {
+                    (Ok(left), Ok(right)) => match (left, right, op) {
+                        (
+                            CalculatorValue::Number(n),
+                            CalculatorValue::Number(n2),
+                            Operation::Mul,
+                        ) => Ok(CalculatorValue::Number(n * n2)),
+                        (
+                            CalculatorValue::Number(n),
+                            CalculatorValue::Number(n2),
+                            Operation::Div,
+                        ) => Ok(CalculatorValue::Number(n / n2)),
+                        (
+                            CalculatorValue::Number(n),
+                            CalculatorValue::Number(n2),
+                            Operation::Plus,
+                        ) => Ok(CalculatorValue::Number(n + n2)),
+                        (
+                            CalculatorValue::Number(n),
+                            CalculatorValue::Number(n2),
+                            Operation::Minus,
+                        ) => Ok(CalculatorValue::Number(n - n2)),
+                        (
+                            CalculatorValue::String(s),
+                            CalculatorValue::String(s2),
+                            Operation::Plus,
+                        ) => Ok(CalculatorValue::String(s + &s2)),
+                        _ => Err(CalculatorError::InvalidBinaryOp(*op))
                     },
                     _ => Ok(CalculatorValue::Number(0.0)),
                 }
+
+                // match left_val {
+                //     Ok(CalculatorValue::Number(n)) => match right_val {
+                //         Ok(CalculatorValue::Number(n2)) => match op {},
+                //         _ => Ok(CalculatorValue::Number(0.0)),
+                //     },
+                //     Ok(CalculatorValue::String(s)) => match right_val {
+                //         Ok(CalculatorValue::String(s2)) => match op {
+                //             Operation::Plus => Ok(CalculatorValue::String(s + &s2)),
+                //             _ => Ok(CalculatorValue::String("".to_string())),
+                //         },
+                //         Ok(CalculatorValue::Number(n)) => match op {
+                //             Operation::Mul => {
+                //                 if n < 1.0 {
+                //                     Ok(CalculatorValue::String("".to_string()))
+                //                 } else {
+                //                     let mut text = s.clone();
+                //                     for _ in 1..(n as i32) {
+                //                         text += &s;
+                //                     }
+                //                     Ok(CalculatorValue::String(text))
+                //                 }
+                //             }
+                //             _ => Ok(CalculatorValue::String("".to_string())),
+                //         },
+                //         _ => Ok(CalculatorValue::String("".to_string())),
+                //     },
+                //     _ => Ok(CalculatorValue::Number(0.0)),
+                // }
             }
         }
     }
@@ -333,8 +366,8 @@ impl Parser {
             }
             Token::String(s) => {
                 self.next();
-                return Node::String(s)
-            },
+                return Node::String(s);
+            }
             Token::Ident(i) => {
                 self.next();
                 if let Token::Colon = self.cur_tok {
@@ -463,12 +496,12 @@ impl Interpreter {
         &self,
         symbols: &mut HashMap<String, CalculatorValue>,
         table: &Table,
-    ) -> Result<CalculatorValue, u8> {
+    ) -> Result<CalculatorValue, CalculatorError> {
         let rec_count = symbols.get_mut("%recursion");
         if let Some(CalculatorValue::Number(n)) = rec_count {
             *n += 1.0;
             if *n > RECURSION_LIMIT {
-                return Err(1);
+                return Err(CalculatorError::RecursionLimit);
             }
         }
         self.tree.visit(symbols, table)
@@ -485,7 +518,7 @@ pub fn calcualte_from_tokens(
     tokens: Vec<Token>,
     symbols: &mut HashMap<String, CalculatorValue>,
     table: &Table,
-) -> Result<CalculatorValue, u8> {
+) -> Result<CalculatorValue, CalculatorError> {
     let mut parser = Parser::new(tokens);
     let tree = parser.build_tree();
     let int = Interpreter::new(tree);
@@ -497,7 +530,7 @@ pub fn calculate(
     equation: &str,
     symbols: &mut HashMap<String, CalculatorValue>,
     table: &Table,
-) -> Result<CalculatorValue, u8> {
+) -> Result<CalculatorValue, CalculatorError> {
     let toks = get_tokens(equation);
     return calcualte_from_tokens(toks, symbols, table);
 }

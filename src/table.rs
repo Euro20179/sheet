@@ -57,10 +57,10 @@ fn handle_equation(
         Ok(calculator::CalculatorValue::Number(n)) => n.to_string(),
         Ok(calculator::CalculatorValue::Range(x, y)) => format!("{:?}..{:?}", x, y),
         Err(e) => {
-            IF!(e == 1,
-                true => "Err#1: Recursion limit reached",
-                false => ""
-            ).to_owned()
+            match e {
+                calculator::CalculatorError::RecursionLimit => "Err#1: Recursion limit reached",
+                calculator::CalculatorError::InvalidBinaryOp(_) => "Err#2: Invalid binary operation",
+            }.to_owned()
         }
     };
     return Ok(ans);

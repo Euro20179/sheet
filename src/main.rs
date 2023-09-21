@@ -359,6 +359,7 @@ fn main() {
             Mode::Insert => false,
             _ => true,
         };
+        //TODO: move the actual cursor to the selected row
         println!("{}", program.table.display(10, do_equations));
         let key_sequence = get_key(&program, &mut reader, true);
         //TODO: add detection for if the file is saved
@@ -368,6 +369,5 @@ fn main() {
             handle_mode(&mut program, key_sequence);
         }
     }
-
     tcsetattr(stdin, TCSANOW, &termios).unwrap();
 }

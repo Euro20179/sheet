@@ -11,11 +11,13 @@ pub enum Token {
     Star,
     Div,
     Number(f64),
+    String(String),
     LParen,
     RParen,
     Ident(String),
     Colon,
     Comma,
+    Eq,
 }
 
 #[derive(Debug)]
@@ -60,6 +62,31 @@ impl Lexer<'_> {
         return n;
     }
 
+    fn build_string(&mut self) -> String {
+        if let None = self.next() {
+            return String::new();
+        }
+        let mut text = String::from(self.cur_char.unwrap());
+        let mut escape = false;
+        while let Some(ch) = self.next() {
+            if ch == '\\' {
+                escape = true;
+                continue;
+            } else if escape {
+                text += &String::from(match ch {
+                    'n' => '\n',
+                    _ => ch,
+                });
+                escape = false;
+            } else if ch == '"' {
+                break;
+            } else {
+                text += &String::from(ch);
+            }
+        }
+        return text;
+    }
+
     fn build_ident(&mut self) -> String {
         let mut ident = self.cur_char.unwrap().to_string();
         while let Some(ch) = self.next() {
@@ -87,6 +114,7 @@ impl Lexer<'_> {
                     '/' => Token::Div,
                     ')' => Token::RParen,
                     '(' => Token::LParen,
+                    '=' => Token::Eq,
                     '$' => {
                         let tok = Token::Ident(self.build_ident());
                         tokens.push(tok);
@@ -94,6 +122,7 @@ impl Lexer<'_> {
                     }
                     ':' => Token::Colon,
                     ',' => Token::Comma,
+                    '"' => Token::String(self.build_string()),
                     '0'..='9' => {
                         let tok = Token::Number(self.build_number());
                         tokens.push(tok);
@@ -129,6 +158,7 @@ pub enum Operation {
 #[derive(Debug)]
 pub enum Node {
     BinOp(Box<Node>, Operation, Box<Node>),
+    String(String),
     Number(f64),
     Ident(String),
     Range(String, String),
@@ -225,9 +255,12 @@ impl Node {
                 Ok(CalculatorValue::Range(start_pos, end_pos))
             }
             Node::Number(n) => Ok(CalculatorValue::Number(n.to_owned())),
+            Node::String(s) => Ok(CalculatorValue::String(s.to_string())),
             Node::BinOp(left, op, right) => {
                 let left_val = left.visit(symbols, table);
                 let right_val = right.visit(symbols, table);
+
+                eprintln!("Left: {:?}, right: {:?}", left, right);
 
                 match left_val {
                     Ok(CalculatorValue::Number(n)) => match right_val {
@@ -238,6 +271,27 @@ impl Node {
                             Operation::Minus => Ok(CalculatorValue::Number(n - n2)),
                         },
                         _ => Ok(CalculatorValue::Number(0.0)),
+                    },
+                    Ok(CalculatorValue::String(s)) => match right_val {
+                        Ok(CalculatorValue::String(s2)) => match op {
+                            Operation::Plus => Ok(CalculatorValue::String(s + &s2)),
+                            _ => Ok(CalculatorValue::String("".to_string())),
+                        },
+                        Ok(CalculatorValue::Number(n)) => match op {
+                            Operation::Mul => {
+                                if n < 1.0 {
+                                    Ok(CalculatorValue::String("".to_string()))
+                                } else {
+                                    let mut text = s.clone();
+                                    for _ in 1..(n as i32) {
+                                        text += &s;
+                                    }
+                                    Ok(CalculatorValue::String(text))
+                                }
+                            }
+                            _ => Ok(CalculatorValue::String("".to_string())),
+                        },
+                        _ => Ok(CalculatorValue::String("".to_string())),
                     },
                     _ => Ok(CalculatorValue::Number(0.0)),
                 }
@@ -277,6 +331,10 @@ impl Parser {
                 self.next();
                 return Node::Number(n);
             }
+            Token::String(s) => {
+                self.next();
+                return Node::String(s)
+            },
             Token::Ident(i) => {
                 self.next();
                 if let Token::Colon = self.cur_tok {
@@ -379,7 +437,7 @@ impl CalculatorValue {
                             if let Some(r) = cache {
                                 sum += r.to_f64(symbols, table);
                             } else {
-                                if let Ok(v) = calculate(&e, symbols, table){
+                                if let Ok(v) = calculate(&e, symbols, table) {
                                     sum += v.to_f64(symbols, table);
                                 }
                             }
@@ -409,8 +467,8 @@ impl Interpreter {
         let rec_count = symbols.get_mut("%recursion");
         if let Some(CalculatorValue::Number(n)) = rec_count {
             *n += 1.0;
-            if *n > RECURSION_LIMIT{
-                return Err(1)
+            if *n > RECURSION_LIMIT {
+                return Err(1);
             }
         }
         self.tree.visit(symbols, table)

@@ -1,19 +1,45 @@
 mod calculator;
 mod position_parser;
+mod program;
 mod sheet_tokenizer;
 mod table;
+
+mod command_line;
 
 use std::io::{Read, Stdin};
 
 use base64::{engine, prelude::*};
 
+use command_line::CommandLine;
 use termios::{tcsetattr, Termios, ECHO, ICANON, TCSANOW};
 
 use table::{Position, Table};
 
-mod program;
-
 use crate::table::Direction;
+
+fn execute_command(program: &mut program::Program, command: &str) {
+    if command == "q" {
+        std::process::exit(0);
+    }
+    if command == "w" {
+        let sheet = program.table.to_sheet();
+        std::fs::write(program.get_file_path(), sheet).unwrap();
+        program.command_line.print("Saved");
+    }
+}
+
+fn handle_command_mode(program: &mut program::Program, key: program::KeySequence) {
+    if key.action as u8 == 10 {
+        let text = program.command_line.get_current_text().to_owned();
+        program.command_line.clear_text();
+        execute_command(program, &text);
+        program.set_mode(program::Mode::Normal);
+    } else if key.action as u8 == 127 {
+        program.command_line.remove_last_char();
+    } else {
+        program.command_line.add_text_to_current_command(&key.key);
+    }
+}
 
 fn handle_normal_mode(program: &mut program::Program, key: program::KeySequence) {
     //TODO: undo mode
@@ -22,32 +48,8 @@ fn handle_normal_mode(program: &mut program::Program, key: program::KeySequence)
     match key.key.as_str() {
         "i" => program.set_mode(program::Mode::Insert),
         ":" => {
-            let mut reader = std::io::stdin();
-            let mut col = String::new();
-            let mut row = String::new();
-            loop {
-                let key = get_key(program, &mut reader, false);
-                match key.action {
-                    'A'..='Z' => col += &String::from((key.action as u8 + 32) as char),
-                    'a'..='z' => col += &String::from(key.action),
-                    '0'..='9' => {
-                        row += &String::from(key.action);
-                        break;
-                    }
-                    _ => break,
-                }
-            }
-            loop {
-                let key = get_key(program, &mut reader, false);
-                match key.action {
-                    '0'..='9' => row += &String::from(key.action),
-                    _ => break,
-                }
-            }
-            let row_num: usize = row.parse().unwrap();
-            program
-                .table
-                .set_cursor_pos(row_num - 1, table::base_26_to_10(col))
+            program.command_line.clear_text();
+            program.set_mode(program::Mode::Command);
         }
         "y" => {
             let mut reader = std::io::stdin();
@@ -230,10 +232,15 @@ fn handle_mode(program: &mut program::Program, key: program::KeySequence) {
     match program.current_mode() {
         program::Mode::Normal => handle_normal_mode(program, key),
         program::Mode::Insert => handle_insert_mode(program, key),
+        program::Mode::Command => handle_command_mode(program, key),
     }
 }
 
-fn get_key(program: &program::Program, reader: &mut Stdin, accept_count: bool) -> program::KeySequence {
+fn get_key(
+    program: &program::Program,
+    reader: &mut Stdin,
+    accept_count: bool,
+) -> program::KeySequence {
     let mut count = String::new();
     let mut buf = [0; 32]; //consume enough bytes to store utf-8, 32 bytes should be enough
     loop {
@@ -329,7 +336,9 @@ fn main() {
         table = Table::from_csv(&text, ',');
     }
 
-    let mut program = program::Program::new(&fp, &mut table);
+    let mut command_line: CommandLine = CommandLine::new(0, 30);
+
+    let mut program = program::Program::new(&fp, &mut table, &mut command_line);
 
     let mut reader = std::io::stdin();
 
@@ -341,6 +350,7 @@ fn main() {
         };
         //TODO: move the actual cursor to the selected row
         println!("{}", program.table.display(10, do_equations));
+        println!("{}", program.command_line.display());
         let key_sequence = get_key(&program, &mut reader, true);
         //TODO: add detection for if the file is saved
         if key_sequence.action == 'q' && program.current_mode() == program::Mode::Normal {

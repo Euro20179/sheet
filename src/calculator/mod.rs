@@ -269,65 +269,35 @@ impl Node {
                 eprintln!("Left: {:?}, right: {:?}", left, right);
 
                 match (left_val, right_val) {
-                    (Ok(left), Ok(right)) => match (left, right, op) {
-                        (
-                            CalculatorValue::Number(n),
-                            CalculatorValue::Number(n2),
-                            Operation::Mul,
-                        ) => Ok(CalculatorValue::Number(n * n2)),
-                        (
-                            CalculatorValue::Number(n),
-                            CalculatorValue::Number(n2),
-                            Operation::Div,
-                        ) => Ok(CalculatorValue::Number(n / n2)),
-                        (
-                            CalculatorValue::Number(n),
-                            CalculatorValue::Number(n2),
-                            Operation::Plus,
-                        ) => Ok(CalculatorValue::Number(n + n2)),
-                        (
-                            CalculatorValue::Number(n),
-                            CalculatorValue::Number(n2),
-                            Operation::Minus,
-                        ) => Ok(CalculatorValue::Number(n - n2)),
-                        (
-                            CalculatorValue::String(s),
-                            CalculatorValue::String(s2),
-                            Operation::Plus,
-                        ) => Ok(CalculatorValue::String(s + &s2)),
+                    (Ok(left), Ok(right)) => match (left, right) {
+                        (CalculatorValue::Number(n), CalculatorValue::Number(n2)) => Ok(CalculatorValue::Number(match op {
+                            Operation::Mul => n*n2,
+                            Operation::Div => n / n2,
+                            Operation::Minus => n  - n2,
+                            Operation::Plus => n + n2
+                        })),
+                        (CalculatorValue::String(s), CalculatorValue::String(s2)) => Ok(CalculatorValue::String(match op {
+                            Operation::Plus => s + &s2,
+                            _ => "".to_owned()
+                        })),
+                        (CalculatorValue::String(s), CalculatorValue::Number(n)) => Ok(CalculatorValue::String(match op {
+                            Operation::Mul => {
+                                if n < 1.0 {
+                                    "".to_string()
+                                } else {
+                                    let mut text = s.clone();
+                                    for _ in 1..(n as i32) {
+                                        text += &s;
+                                    }
+                                    text
+                                }
+                            },
+                            _ => s
+                        })),
                         _ => Err(CalculatorError::InvalidBinaryOp(*op))
-                    },
+                    }
                     _ => Ok(CalculatorValue::Number(0.0)),
                 }
-
-                // match left_val {
-                //     Ok(CalculatorValue::Number(n)) => match right_val {
-                //         Ok(CalculatorValue::Number(n2)) => match op {},
-                //         _ => Ok(CalculatorValue::Number(0.0)),
-                //     },
-                //     Ok(CalculatorValue::String(s)) => match right_val {
-                //         Ok(CalculatorValue::String(s2)) => match op {
-                //             Operation::Plus => Ok(CalculatorValue::String(s + &s2)),
-                //             _ => Ok(CalculatorValue::String("".to_string())),
-                //         },
-                //         Ok(CalculatorValue::Number(n)) => match op {
-                //             Operation::Mul => {
-                //                 if n < 1.0 {
-                //                     Ok(CalculatorValue::String("".to_string()))
-                //                 } else {
-                //                     let mut text = s.clone();
-                //                     for _ in 1..(n as i32) {
-                //                         text += &s;
-                //                     }
-                //                     Ok(CalculatorValue::String(text))
-                //                 }
-                //             }
-                //             _ => Ok(CalculatorValue::String("".to_string())),
-                //         },
-                //         _ => Ok(CalculatorValue::String("".to_string())),
-                //     },
-                //     _ => Ok(CalculatorValue::Number(0.0)),
-                // }
             }
         }
     }

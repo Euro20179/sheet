@@ -266,8 +266,6 @@ impl Node {
                 let left_val = left.visit(symbols, table);
                 let right_val = right.visit(symbols, table);
 
-                eprintln!("Left: {:?}, right: {:?}", left, right);
-
                 match (left_val, right_val) {
                     (Ok(left), Ok(right)) => match (left, right) {
                         (CalculatorValue::Number(n), CalculatorValue::Number(n2)) => Ok(CalculatorValue::Number(match op {

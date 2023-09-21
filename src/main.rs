@@ -11,32 +11,16 @@ use termios::{tcsetattr, Termios, ECHO, ICANON, TCSANOW};
 
 use table::{Position, Table};
 
+mod program;
+
 use crate::table::Direction;
 
-#[derive(Eq, PartialEq)]
-enum Mode {
-    Normal,
-    Insert,
-}
-
-struct KeySequence {
-    pub count: usize,
-    pub action: char,
-    pub key: String,
-}
-
-struct Program<'a> {
-    mode: Mode,
-    file_path: String,
-    table: &'a mut Table,
-}
-
-fn handle_normal_mode(program: &mut Program, key: KeySequence) {
+fn handle_normal_mode(program: &mut program::Program, key: program::KeySequence) {
     //TODO: undo mode
     //table could keep track of previous instances of rows/columns
     //when u is pressed it restores the previous instance of rows/columns
     match key.key.as_str() {
-        "i" => program.mode = Mode::Insert,
+        "i" => program.set_mode(program::Mode::Insert),
         ":" => {
             let mut reader = std::io::stdin();
             let mut col = String::new();
@@ -126,7 +110,7 @@ fn handle_normal_mode(program: &mut Program, key: KeySequence) {
         }
         "s" => {
             program.table.clear_cell(&program.table.get_pos());
-            program.mode = Mode::Insert
+            program.set_mode(program::Mode::Insert);
         }
         "\x1b[B" | "j" => {
             for _ in 0..key.count {
@@ -214,7 +198,7 @@ fn handle_normal_mode(program: &mut Program, key: KeySequence) {
         }
         "w" => {
             let sheet = program.table.to_sheet();
-            std::fs::write(&program.file_path, sheet).unwrap();
+            std::fs::write(program.get_file_path(), sheet).unwrap();
         }
         "x" => {
             let pos = program.table.get_pos();
@@ -224,12 +208,12 @@ fn handle_normal_mode(program: &mut Program, key: KeySequence) {
     }
 }
 
-fn handle_insert_mode(program: &mut Program, key: KeySequence) {
+fn handle_insert_mode(program: &mut program::Program, key: program::KeySequence) {
     let table = &mut program.table;
     match key.action as u8 {
         //backspace
         127 => table.remove_last_char_in_cell(&table.get_pos()),
-        10 => program.mode = Mode::Normal,
+        10 => program.set_mode(program::Mode::Normal),
         b'\t' => table.move_cursor(Direction::Right),
         b'=' => {
             if table.cursor_pos_is_empty() {
@@ -242,14 +226,14 @@ fn handle_insert_mode(program: &mut Program, key: KeySequence) {
     }
 }
 
-fn handle_mode(program: &mut Program, key: KeySequence) {
-    match program.mode {
-        Mode::Normal => handle_normal_mode(program, key),
-        Mode::Insert => handle_insert_mode(program, key),
+fn handle_mode(program: &mut program::Program, key: program::KeySequence) {
+    match program.current_mode() {
+        program::Mode::Normal => handle_normal_mode(program, key),
+        program::Mode::Insert => handle_insert_mode(program, key),
     }
 }
 
-fn get_key(program: &Program, reader: &mut Stdin, accept_count: bool) -> KeySequence {
+fn get_key(program: &program::Program, reader: &mut Stdin, accept_count: bool) -> program::KeySequence {
     let mut count = String::new();
     let mut buf = [0; 32]; //consume enough bytes to store utf-8, 32 bytes should be enough
     loop {
@@ -257,13 +241,13 @@ fn get_key(program: &Program, reader: &mut Stdin, accept_count: bool) -> KeySequ
         let key = String::from_utf8(buf[0..bytes_read].to_vec()).unwrap();
         let ch = buf[0];
 
-        if ch >= 48 && ch <= 57 && program.mode == Mode::Normal && accept_count {
+        if ch >= 48 && ch <= 57 && program.current_mode() == program::Mode::Normal && accept_count {
             count += &String::from(ch as char);
         } else {
             if count == "" {
                 count = String::from("1");
             }
-            return KeySequence {
+            return program::KeySequence {
                 action: ch as char,
                 count: count.parse().unwrap(),
                 key,
@@ -345,25 +329,21 @@ fn main() {
         table = Table::from_csv(&text, ',');
     }
 
-    let mut program = Program {
-        table: &mut table,
-        file_path: fp,
-        mode: Mode::Normal,
-    };
+    let mut program = program::Program::new(&fp, &mut table);
 
     let mut reader = std::io::stdin();
 
     loop {
         print!("\x1b[2J\x1b[0H");
-        let do_equations = match program.mode {
-            Mode::Insert => false,
+        let do_equations = match program.current_mode() {
+            program::Mode::Insert => false,
             _ => true,
         };
         //TODO: move the actual cursor to the selected row
         println!("{}", program.table.display(10, do_equations));
         let key_sequence = get_key(&program, &mut reader, true);
         //TODO: add detection for if the file is saved
-        if key_sequence.action == 'q' && program.mode == Mode::Normal {
+        if key_sequence.action == 'q' && program.current_mode() == program::Mode::Normal {
             break;
         } else {
             handle_mode(&mut program, key_sequence);

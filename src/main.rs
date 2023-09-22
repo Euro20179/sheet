@@ -41,7 +41,10 @@ fn parse_args(args: &mut Args) -> ProgramArguments {
         }
     }
     match file_name {
-        None => ProgramArguments {opts, file: "-".to_string()},
+        None => ProgramArguments {
+            opts,
+            file: "-".to_string(),
+        },
         Some(file) => ProgramArguments { opts, file },
     }
 }
@@ -332,13 +335,14 @@ fn main() {
 
     let program_args = parse_args(&mut args);
 
+    let stdin = std::io::stdin();
+
     let fp = program_args.file;
     let default_ft = "tsheet".to_string();
     let file_type = program_args.opts.get("-f").unwrap_or(&default_ft);
 
     let mut text = String::new();
     if fp == "-" {
-        let stdin = std::io::stdin();
         let mut temp = String::new();
         for line in stdin.lock().lines() {
             temp += &line.unwrap();
@@ -358,14 +362,16 @@ fn main() {
         libc::dup2(tty_fd, 0);
     }
 
-    let stdin = 0;
-    let termios = Termios::from_fd(stdin).unwrap();
+    //setup termios settings
+    let stdin_fd = 0;
+    let termios = Termios::from_fd(stdin_fd).unwrap();
     let mut new_termios = termios.clone();
     new_termios.c_lflag &= !(ICANON | ECHO);
     new_termios.c_cc[termios::VMIN] = 1;
     new_termios.c_cc[termios::VTIME] = 10;
-    tcsetattr(stdin, TCSANOW, &mut new_termios).unwrap();
+    tcsetattr(stdin_fd, TCSANOW, &mut new_termios).unwrap();
 
+    //parse data depending on file type
     let mut table: Table;
     if file_type != "csv" {
         let toks = sheet_tokenizer::parse(text.as_str());
@@ -378,8 +384,7 @@ fn main() {
 
     let mut program = program::Program::new(&fp, &mut table, &mut command_line);
 
-    let mut reader = std::io::stdin();
-
+    let mut reader = stdin;
     loop {
         print!("\x1b[2J\x1b[0H");
         let do_equations = match program.current_mode() {
@@ -397,5 +402,5 @@ fn main() {
             handle_mode(&mut program, key_sequence);
         }
     }
-    tcsetattr(stdin, TCSANOW, &termios).unwrap();
+    tcsetattr(stdin_fd, TCSANOW, &termios).unwrap();
 }

@@ -5,11 +5,12 @@ mod program;
 mod sheet_tokenizer;
 mod table;
 use command_line::CommandLine;
+use std::os::unix::io::AsRawFd;
 use table::{Direction, Position, Table};
 
 use std::{
     env::Args,
-    io::{Read, Stdin},
+    io::{BufRead, Read, Stdin},
 };
 
 use base64::{engine, prelude::*};
@@ -25,8 +26,11 @@ fn parse_args(args: &mut Args) -> ProgramArguments {
     let _prog_name = args.next(); //skip prog_name
     let mut opts: std::collections::HashMap<String, String> = std::collections::HashMap::new();
     let mut file_name: Option<String> = None;
+    let mut parsing_opts = true;
     while let Some(s) = args.next() {
-        if s.starts_with("-") {
+        if s == "--" {
+            parsing_opts = false;
+        } else if parsing_opts && s.starts_with("-") {
             match args.next() {
                 Some(v) => opts.insert(s, v),
                 None => break,
@@ -37,7 +41,7 @@ fn parse_args(args: &mut Args) -> ProgramArguments {
         }
     }
     match file_name {
-        None => panic!("No input file given (use - for stdin (not implemented yet))"),
+        None => ProgramArguments {opts, file: "-".to_string()},
         Some(file) => ProgramArguments { opts, file },
     }
 }
@@ -332,6 +336,28 @@ fn main() {
     let default_ft = "tsheet".to_string();
     let file_type = program_args.opts.get("-f").unwrap_or(&default_ft);
 
+    let mut text = String::new();
+    if fp == "-" {
+        let stdin = std::io::stdin();
+        let mut temp = String::new();
+        for line in stdin.lock().lines() {
+            temp += &line.unwrap();
+        }
+        text = temp;
+    } else {
+        let data = std::fs::read_to_string(&fp);
+        if let Ok(t) = data {
+            text = t;
+        }
+    }
+
+    //hack to close pipe on stdin
+    let tty = std::fs::File::open("/dev/tty").unwrap();
+    let tty_fd = tty.as_raw_fd();
+    unsafe {
+        libc::dup2(tty_fd, 0);
+    }
+
     let stdin = 0;
     let termios = Termios::from_fd(stdin).unwrap();
     let mut new_termios = termios.clone();
@@ -340,16 +366,9 @@ fn main() {
     new_termios.c_cc[termios::VTIME] = 10;
     tcsetattr(stdin, TCSANOW, &mut new_termios).unwrap();
 
-    let data = std::fs::read_to_string(&fp);
-    let mut text = String::new();
-    if let Ok(t) = data {
-        text = t;
-    }
-
     let mut table: Table;
     if file_type != "csv" {
         let toks = sheet_tokenizer::parse(text.as_str());
-
         table = Table::from_sheet_tokens(toks);
     } else {
         table = Table::from_csv(&text, ',');

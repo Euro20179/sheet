@@ -19,6 +19,7 @@ pub struct Program<'a> {
     file_path: String,
     pub table: &'a mut Table,
     pub command_line: &'a mut CommandLine,
+    pub running: bool
 }
 
 impl Program<'_> {
@@ -27,7 +28,8 @@ impl Program<'_> {
             command_line,
             mode: Mode::Normal,
             table,
-            file_path: fp.to_string()
+            file_path: fp.to_string(),
+            running: true
         }
     }
 

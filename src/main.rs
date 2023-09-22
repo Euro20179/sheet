@@ -78,6 +78,8 @@ fn handle_normal_mode(program: &mut program::Program, key: program::KeySequence)
     //table could keep track of previous instances of rows/columns
     //when u is pressed it restores the previous instance of rows/columns
     match key.key.as_str() {
+        //TODO: add detection for if the file is saved
+        "q" => program.running = false,
         "i" => program.set_mode(program::Mode::Insert),
         ":" => {
             program.command_line.clear_text();
@@ -385,7 +387,7 @@ fn main() {
     let mut program = program::Program::new(&fp, &mut table, &mut command_line);
 
     let mut reader = stdin;
-    loop {
+    while program.running {
         print!("\x1b[2J\x1b[0H");
         let do_equations = match program.current_mode() {
             program::Mode::Insert => false,
@@ -395,12 +397,7 @@ fn main() {
         println!("{}", program.table.display(10, do_equations));
         println!("{}", program.command_line.display());
         let key_sequence = get_key(&program, &mut reader, true);
-        //TODO: add detection for if the file is saved
-        if key_sequence.action == 'q' && program.current_mode() == program::Mode::Normal {
-            break;
-        } else {
-            handle_mode(&mut program, key_sequence);
-        }
+        handle_mode(&mut program, key_sequence);
     }
     tcsetattr(stdin_fd, TCSANOW, &termios).unwrap();
 }

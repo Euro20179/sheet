@@ -1,21 +1,46 @@
 mod calculator;
+mod command_line;
 mod position_parser;
 mod program;
 mod sheet_tokenizer;
 mod table;
+use command_line::CommandLine;
+use table::{Direction, Position, Table};
 
-mod command_line;
-
-use std::io::{Read, Stdin};
+use std::{
+    env::Args,
+    io::{Read, Stdin},
+};
 
 use base64::{engine, prelude::*};
 
-use command_line::CommandLine;
 use termios::{tcsetattr, Termios, ECHO, ICANON, TCSANOW};
 
-use table::{Position, Table};
+struct ProgramArguments {
+    opts: std::collections::HashMap<String, String>,
+    file: String,
+}
 
-use crate::table::Direction;
+fn parse_args(args: &mut Args) -> ProgramArguments {
+    let _prog_name = args.next(); //skip prog_name
+    let mut opts: std::collections::HashMap<String, String> = std::collections::HashMap::new();
+    let mut file_name: Option<String> = None;
+    while let Some(s) = args.next() {
+        if s.starts_with("-") {
+            match args.next() {
+                Some(v) => opts.insert(s, v),
+                None => break,
+            };
+        } else {
+            file_name = Some(s);
+            break;
+        }
+    }
+    match file_name {
+        None => panic!("No input file given (use - for stdin (not implemented yet))"),
+        Some(file) => ProgramArguments { opts, file },
+    }
+}
 
 fn execute_command(program: &mut program::Program, command: &str) {
     if command == "q" {
@@ -301,17 +326,11 @@ fn main() {
 
     let mut args = std::env::args();
 
-    let _progname = args.next();
+    let program_args = parse_args(&mut args);
 
-    let file_name: Option<String> = args.next();
-
-    let file_type = args.next().unwrap_or("tsheet".to_string());
-
-    if let None = file_name {
-        eprintln!("No file name given");
-    }
-
-    let fp = file_name.unwrap();
+    let fp = program_args.file;
+    let default_ft = "tsheet".to_string();
+    let file_type = program_args.opts.get("-f").unwrap_or(&default_ft);
 
     let stdin = 0;
     let termios = Termios::from_fd(stdin).unwrap();

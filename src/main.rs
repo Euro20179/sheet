@@ -85,6 +85,18 @@ fn handle_normal_mode(program: &mut program::Program, key: program::KeySequence)
             program.command_line.clear_text();
             program.set_mode(program::Mode::Command);
         }
+        ">" => {
+            let pos = program.table.get_pos();
+            let cur_size = program.table.get_col_width(pos.col).unwrap();
+            program.table.resize_col(pos.col, cur_size + 1);
+        }
+        "<" => {
+            let pos = program.table.get_pos();
+            let cur_size = program.table.get_col_width(pos.col).unwrap();
+            if cur_size > 0 {
+                program.table.resize_col(pos.col, cur_size - 1);
+            }
+        }
         "y" => {
             let mut reader = std::io::stdin();
             let direction = get_key(program, &mut reader, false);

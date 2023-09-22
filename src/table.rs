@@ -203,6 +203,21 @@ impl Table {
         }
     }
 
+    pub fn get_col_width(&self, col_no: usize) -> Option<usize> {
+        if col_no >= self.column_sizes.len(){
+            None
+        }
+        else {
+            Some(self.column_sizes[col_no])
+        }
+    }
+
+    pub fn resize_col(&mut self, col_no: usize, new_size: usize){
+        if col_no < self.column_sizes.len(){
+            self.column_sizes[col_no] = new_size;
+        }
+    }
+
     pub fn remove_row(&mut self, row_no: usize) {
         self.rows.remove(row_no);
         for col in &mut self.columns {

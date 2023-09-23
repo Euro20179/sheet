@@ -136,6 +136,7 @@ pub struct Table {
     columns: Vec<Vec<Data>>,
     current_pos: Position,
     column_sizes: Vec<usize>,
+    selected_pos_insert_mode: Option<Position> //TODO: implement this
 }
 
 pub enum Direction {
@@ -455,6 +456,8 @@ impl Table {
         ];
     }
 
+    //TODO: accept current mode, to be able to check if the user is in insert mode, and to
+    //highlight the cur char in the position
     pub fn display(&self, max_width: usize, do_equations: bool) -> String {
         let mut text = format!("{:<max_width$}", " ", max_width = max_width);
         let row_slice = self.find_displayable_rows(30); //TODO: make this not hardcoded

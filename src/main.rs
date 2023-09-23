@@ -5,6 +5,7 @@ mod program;
 mod sheet_tokenizer;
 mod table;
 use command_line::CommandLine;
+use program::Program;
 use std::os::unix::io::AsRawFd;
 use table::{Direction, Position, Table};
 
@@ -73,6 +74,39 @@ fn handle_command_mode(program: &mut program::Program, key: program::KeySequence
     }
 }
 
+fn get_range_from_motion(program: &Program, motion: &str) -> (Position, Position) {
+    let pos = program.table.get_pos();
+    return match motion {
+        "l" | "h" => {
+            let pos = program.table.get_pos();
+            (
+                Position {
+                    row: pos.row,
+                    col: 0,
+                },
+                Position {
+                    row: pos.row,
+                    col: program.table.get_size()[1],
+                },
+            )
+        }
+        "j" | "k" => {
+            let pos = program.table.get_pos();
+            return (
+                Position {
+                    row: 0,
+                    col: pos.col,
+                },
+                Position {
+                    row: program.table.get_size()[0],
+                    col: 0,
+                },
+            );
+        },
+        _ => return (pos, pos)
+    };
+}
+
 fn handle_normal_mode(program: &mut program::Program, key: program::KeySequence) {
     //TODO: undo mode
     //table could keep track of previous instances of rows/columns
@@ -101,57 +135,15 @@ fn handle_normal_mode(program: &mut program::Program, key: program::KeySequence)
             let mut reader = std::io::stdin();
             let direction = program.get_key(&mut reader);
             let mut s: String = String::new();
-            match direction.action {
-                'l' | 'h' => {
-                    let pos = program.table.get_pos();
-                    let start = Position {
-                        row: pos.row,
-                        col: 0,
-                    };
-                    let end = Position {
-                        row: pos.row,
-                        col: program.table.get_size()[1],
-                    };
-                    let row = program.table.get_values_at_range(&start, &end);
-                    for d in row {
-                        let temp = match d {
+            let range = get_range_from_motion(program, &direction.action.to_string());
+            let data = program.table.get_values_at_range(&range.0, &range.1);
+            for d in data {
+                let temp = match d {
                             table::Data::Number(n)
                             | table::Data::Equation(n, ..)
                             | table::Data::String(n) => n,
-                        };
-                        s += &(temp + &String::from("\t"));
-                    }
-                }
-                'k' | 'j' => {
-                    let pos = program.table.get_pos();
-                    let start = Position {
-                        row: 0,
-                        col: pos.col,
-                    };
-                    let end = Position {
-                        row: program.table.get_size()[0],
-                        col: 0,
-                    };
-                    let row = program.table.get_values_at_range(&start, &end);
-                    for d in row {
-                        let temp = match d {
-                            table::Data::Number(n)
-                            | table::Data::Equation(n, ..)
-                            | table::Data::String(n) => n,
-                        };
-                        s += &(temp + &String::from("\t"));
-                    }
-                }
-                _ => {
-                    let data = program
-                        .table
-                        .get_value_at_position(&program.table.get_pos());
-                    s = match data {
-                        table::Data::Number(n)
-                        | table::Data::Equation(n, ..)
-                        | table::Data::String(n) => n,
-                    };
-                }
+                };
+                s += &(temp + &String::from("\t"))
             }
             let encoded = engine::general_purpose::STANDARD.encode(s);
             print!("\x1b]52;c;{}\x07", encoded)
@@ -282,34 +274,7 @@ fn handle_mode(program: &mut program::Program, key: program::KeySequence) {
     }
 }
 
-// fn get_key(
-//     program: &program::Program,
-//     reader: &mut Stdin,
-//     accept_count: bool,
-// ) -> program::KeySequence {
-//     let mut count = String::new();
-//     let mut buf = [0; 32]; //consume enough bytes to store utf-8, 32 bytes should be enough
-//     loop {
-//         let bytes_read = reader.read(&mut buf).unwrap();
-//         let key = String::from_utf8(buf[0..bytes_read].to_vec()).unwrap();
-//         let ch = buf[0];
-//
-//         if ch >= 48 && ch <= 57 && program.current_mode() == program::Mode::Normal && accept_count {
-//             count += &String::from(ch as char);
-//         } else {
-//             if count == "" {
-//                 count = String::from("1");
-//             }
-//             return program::KeySequence {
-//                 action: ch as char,
-//                 count: count.parse().unwrap(),
-//                 key,
-//             };
-//         }
-//     }
-// }
-
-fn setup_terminal() -> termios::Termios{
+fn setup_terminal() -> termios::Termios {
     let stdin_fd = 0;
     let termios = Termios::from_fd(stdin_fd).unwrap();
     let mut new_termios = termios.clone();

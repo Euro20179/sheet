@@ -99,7 +99,7 @@ fn handle_normal_mode(program: &mut program::Program, key: program::KeySequence)
         }
         "y" => {
             let mut reader = std::io::stdin();
-            let direction = get_key(program, &mut reader, false);
+            let direction = program.get_key(&mut reader);
             let mut s: String = String::new();
             match direction.action {
                 'l' | 'h' => {
@@ -282,32 +282,32 @@ fn handle_mode(program: &mut program::Program, key: program::KeySequence) {
     }
 }
 
-fn get_key(
-    program: &program::Program,
-    reader: &mut Stdin,
-    accept_count: bool,
-) -> program::KeySequence {
-    let mut count = String::new();
-    let mut buf = [0; 32]; //consume enough bytes to store utf-8, 32 bytes should be enough
-    loop {
-        let bytes_read = reader.read(&mut buf).unwrap();
-        let key = String::from_utf8(buf[0..bytes_read].to_vec()).unwrap();
-        let ch = buf[0];
-
-        if ch >= 48 && ch <= 57 && program.current_mode() == program::Mode::Normal && accept_count {
-            count += &String::from(ch as char);
-        } else {
-            if count == "" {
-                count = String::from("1");
-            }
-            return program::KeySequence {
-                action: ch as char,
-                count: count.parse().unwrap(),
-                key,
-            };
-        }
-    }
-}
+// fn get_key(
+//     program: &program::Program,
+//     reader: &mut Stdin,
+//     accept_count: bool,
+// ) -> program::KeySequence {
+//     let mut count = String::new();
+//     let mut buf = [0; 32]; //consume enough bytes to store utf-8, 32 bytes should be enough
+//     loop {
+//         let bytes_read = reader.read(&mut buf).unwrap();
+//         let key = String::from_utf8(buf[0..bytes_read].to_vec()).unwrap();
+//         let ch = buf[0];
+//
+//         if ch >= 48 && ch <= 57 && program.current_mode() == program::Mode::Normal && accept_count {
+//             count += &String::from(ch as char);
+//         } else {
+//             if count == "" {
+//                 count = String::from("1");
+//             }
+//             return program::KeySequence {
+//                 action: ch as char,
+//                 count: count.parse().unwrap(),
+//                 key,
+//             };
+//         }
+//     }
+// }
 
 fn setup_terminal() -> termios::Termios{
     let stdin_fd = 0;
@@ -411,7 +411,7 @@ fn main() {
         //TODO: move the actual cursor to the selected row
         println!("{}", program.table.display(10, do_equations));
         println!("{}", program.command_line.display());
-        let key_sequence = get_key(&program, &mut reader, true);
+        let key_sequence = program.get_key(&mut reader);
         handle_mode(&mut program, key_sequence);
     }
     tcsetattr(0, TCSANOW, &old_termios).unwrap();

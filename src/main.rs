@@ -77,33 +77,67 @@ fn handle_command_mode(program: &mut program::Program, key: program::KeySequence
 fn get_range_from_motion(program: &Program, motion: &str) -> (Position, Position) {
     let pos = program.table.get_pos();
     return match motion {
-        "l" | "h" => {
-            let pos = program.table.get_pos();
-            (
-                Position {
-                    row: pos.row,
-                    col: 0,
-                },
-                Position {
-                    row: pos.row,
-                    col: program.table.get_size()[1],
-                },
-            )
-        }
-        "j" | "k" => {
-            let pos = program.table.get_pos();
-            return (
-                Position {
-                    row: 0,
-                    col: pos.col,
-                },
-                Position {
-                    row: program.table.get_size()[0],
-                    col: 0,
-                },
-            );
-        },
-        _ => return (pos, pos)
+        "l" | "h" => (
+            Position {
+                row: pos.row,
+                col: 0,
+            },
+            Position {
+                row: pos.row,
+                col: program.table.get_size()[1] - 1,
+            },
+        ),
+        "j" | "k" => (
+            Position {
+                row: 0,
+                col: pos.col,
+            },
+            Position {
+                row: program.table.get_size()[0] - 1,
+                col: 0,
+            },
+        ),
+        "G" => (
+            Position {
+                row: pos.row,
+                col: pos.col,
+            },
+            Position {
+                row: program.table.get_size()[0] - 1,
+                col: pos.col,
+            },
+        ),
+        "g" => (
+            Position {
+                row: 0,
+                col: pos.col,
+            },
+            Position {
+                row: pos.row,
+                col: pos.col,
+            },
+        ),
+        "$" => (
+            Position {
+                row: pos.row,
+                col: pos.col,
+            },
+            Position {
+                row: pos.row,
+                col: program.table.get_size()[1] - 1,
+            },
+        ),
+        "0" => (
+            Position {
+                row: pos.row,
+                col: pos.col,
+            },
+            Position {
+                row: pos.row,
+                col: 0,
+            },
+        ),
+        _ => (pos, pos),
     };
 }
 
@@ -139,9 +173,9 @@ fn handle_normal_mode(program: &mut program::Program, key: program::KeySequence)
             let data = program.table.get_values_at_range(&range.0, &range.1);
             for d in data {
                 let temp = match d {
-                            table::Data::Number(n)
-                            | table::Data::Equation(n, ..)
-                            | table::Data::String(n) => n,
+                    table::Data::Number(n)
+                    | table::Data::Equation(n, ..)
+                    | table::Data::String(n) => n,
                 };
                 s += &(temp + &String::from("\t"))
             }

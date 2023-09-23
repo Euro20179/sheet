@@ -309,6 +309,17 @@ fn get_key(
     }
 }
 
+fn setup_terminal() -> termios::Termios{
+    let stdin_fd = 0;
+    let termios = Termios::from_fd(stdin_fd).unwrap();
+    let mut new_termios = termios.clone();
+    new_termios.c_lflag &= !(ICANON | ECHO);
+    new_termios.c_cc[termios::VMIN] = 1;
+    new_termios.c_cc[termios::VTIME] = 10;
+    tcsetattr(stdin_fd, TCSANOW, &mut new_termios).unwrap();
+    return termios;
+}
+
 fn main() {
     // let mut lexer = calculator::Lexer::new("sum($a1:$b1)/2");
     // let toks = lexer.tokenize();
@@ -376,14 +387,7 @@ fn main() {
         libc::dup2(tty_fd, 0);
     }
 
-    //setup termios settings
-    let stdin_fd = 0;
-    let termios = Termios::from_fd(stdin_fd).unwrap();
-    let mut new_termios = termios.clone();
-    new_termios.c_lflag &= !(ICANON | ECHO);
-    new_termios.c_cc[termios::VMIN] = 1;
-    new_termios.c_cc[termios::VTIME] = 10;
-    tcsetattr(stdin_fd, TCSANOW, &mut new_termios).unwrap();
+    let old_termios = setup_terminal();
 
     //parse data depending on file type
     let mut table: Table = if file_type == "csv" {
@@ -410,5 +414,5 @@ fn main() {
         let key_sequence = get_key(&program, &mut reader, true);
         handle_mode(&mut program, key_sequence);
     }
-    tcsetattr(stdin_fd, TCSANOW, &termios).unwrap();
+    tcsetattr(0, TCSANOW, &old_termios).unwrap();
 }

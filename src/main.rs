@@ -51,13 +51,25 @@ fn parse_args(args: &mut Args) -> ProgramArguments {
 }
 
 fn execute_command(program: &mut program::Program, command: &str) {
-    if command == "q" {
-        std::process::exit(0);
-    }
-    if command == "w" {
-        let sheet = program.table.to_sheet();
-        std::fs::write(program.get_file_path(), sheet).unwrap();
-        program.command_line.print("Saved");
+    let mut args = command.split(' ');
+    let cmd = args.next();
+    match cmd {
+        None => return,
+        Some(c) => {
+            if c == "q" {
+                std::process::exit(0);
+            }
+            if c == "w" {
+                let file_name = args.next();
+                let path = match file_name{
+                    None => program.get_file_path(),
+                    Some(name) => name
+                };
+                let sheet = program.table.to_sheet();
+                std::fs::write(path, sheet).unwrap();
+                program.command_line.print("Saved");
+            }
+        }
     }
 }
 

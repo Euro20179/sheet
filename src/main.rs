@@ -386,13 +386,12 @@ fn main() {
     tcsetattr(stdin_fd, TCSANOW, &mut new_termios).unwrap();
 
     //parse data depending on file type
-    let mut table: Table;
-    if file_type != "csv" {
-        let toks = sheet_tokenizer::parse(text.as_str());
-        table = Table::from_sheet_tokens(toks);
+    let mut table: Table = if file_type == "csv" {
+        Table::from_csv(&text, ',')
     } else {
-        table = Table::from_csv(&text, ',');
-    }
+        let toks = sheet_tokenizer::parse(text.as_str());
+        Table::from_sheet_tokens(toks)
+    };
 
     let mut command_line: CommandLine = CommandLine::new(0, 30);
 

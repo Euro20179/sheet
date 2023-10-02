@@ -11,7 +11,7 @@ use table::{Direction, Position, Table};
 
 use std::{
     env::Args,
-    io::{BufRead, Read, Stdin},
+    io::BufRead
 };
 
 use base64::{engine, prelude::*};

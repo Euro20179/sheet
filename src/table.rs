@@ -136,7 +136,6 @@ pub struct Table {
     columns: Vec<Vec<Data>>,
     current_pos: Position,
     column_sizes: Vec<usize>,
-    selected_pos_insert_mode: Option<Position> //TODO: implement this
 }
 
 pub enum Direction {

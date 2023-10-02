@@ -1,9 +1,9 @@
 mod calculator;
-mod command_line;
 mod position_parser;
 mod program;
 mod sheet_tokenizer;
 mod table;
+mod command_line;
 use command_line::CommandLine;
 use program::Program;
 use std::os::unix::io::AsRawFd;
@@ -415,12 +415,8 @@ fn main() {
     let mut reader = stdin;
     while program.running {
         print!("\x1b[2J\x1b[0H");
-        let do_equations = match program.current_mode() {
-            program::Mode::Insert => false,
-            _ => true,
-        };
         //TODO: move the actual cursor to the selected row
-        println!("{}", program.table.display(10, do_equations));
+        println!("{}", program.table.display(10, program.current_mode()));
         println!("{}", program.command_line.display());
         let key_sequence = program.get_key(&mut reader);
         handle_mode(&mut program, key_sequence);

@@ -464,11 +464,7 @@ impl Table {
         let row_slice = self.find_displayable_rows(program.term_info.lines); //TODO: make this not hardcoded
         let col_slice = self.find_displayable_cols(term_width); //TODO: make this not hardcoded
         let mut row_no = row_slice[0];
-        let do_equations = if let program::Mode::Insert = program.current_mode() {
-            true
-        } else {
-            false
-        };
+        let do_equations = !program.is_mode(program::Mode::Insert);
         for i in col_slice[0]..col_slice[1] {
             text += &format!(
                 "{:^max_width$}",

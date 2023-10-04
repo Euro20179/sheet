@@ -54,6 +54,13 @@ impl Program<'_> {
         self.mode = mode;
     }
 
+    pub fn is_mode(&self, mode: Mode) -> bool{
+        if self.mode == mode {
+            return true;
+        }
+        return false;
+    }
+
     pub fn get_file_path(&self) -> &str {
         return self.file_path.as_str();
     }

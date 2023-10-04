@@ -16,12 +16,18 @@ pub struct KeySequence {
     pub key: String,
 }
 
+pub struct TermInfo{
+    pub cols: usize,
+    pub lines: usize
+}
+
 pub struct Program<'a> {
     mode: Mode,
     file_path: String,
     pub table: &'a mut Table,
     pub command_line: &'a mut CommandLine,
     pub running: bool,
+    pub term_info: TermInfo
 }
 
 impl Program<'_> {
@@ -36,6 +42,7 @@ impl Program<'_> {
             table,
             file_path: fp.to_string(),
             running: true,
+            term_info: TermInfo { cols: 30, lines: 20 }
         }
     }
 

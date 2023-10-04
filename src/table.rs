@@ -457,12 +457,14 @@ impl Table {
 
     //TODO: accept current mode, to be able to check if the user is in insert mode, and to
     //highlight the cur char in the position
-    pub fn display(&self, max_width: usize, mode: program::Mode) -> String {
+    pub fn display(&self, max_width: usize, program: &program::Program) -> String {
+        let term_width = program.term_info.cols;
+
         let mut text = format!("{:<max_width$}", " ", max_width = max_width);
-        let row_slice = self.find_displayable_rows(30); //TODO: make this not hardcoded
-        let col_slice = self.find_displayable_cols(6); //TODO: make this not hardcoded
+        let row_slice = self.find_displayable_rows(program.term_info.lines); //TODO: make this not hardcoded
+        let col_slice = self.find_displayable_cols(term_width); //TODO: make this not hardcoded
         let mut row_no = row_slice[0];
-        let do_equations = if let program::Mode::Insert = mode {
+        let do_equations = if let program::Mode::Insert = program.current_mode() {
             true
         } else {
             false
@@ -473,7 +475,7 @@ impl Table {
                 base_10_to_col_num(i + 1),
                 max_width = self.column_sizes[i]
             );
-        }
+        };
         text += &String::from("\n");
         for row in &self.rows[row_slice[0]..row_slice[1]] {
             let mut col_no = col_slice[0];

@@ -285,6 +285,7 @@ fn handle_normal_mode(program: &mut program::Program, key: program::KeySequence)
         "w" => {
             let sheet = program.table.to_sheet();
             std::fs::write(program.get_file_path(), sheet).unwrap();
+            program.command_line.print("Saved")
         }
         "x" => {
             let pos = program.table.get_pos();
@@ -416,7 +417,7 @@ fn main() {
     while program.running {
         print!("\x1b[2J\x1b[0H");
         //TODO: move the actual cursor to the selected row
-        println!("{}", program.table.display(10, program.current_mode()));
+        println!("{}", program.table.display(10, &program));
         println!("{}", program.command_line.display());
         let key_sequence = program.get_key(&mut reader);
         handle_mode(&mut program, key_sequence);

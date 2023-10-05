@@ -170,6 +170,13 @@ impl Table {
         let columns = Table::build_columns_from_rows(&rows);
         self.rows = rows;
         self.columns = columns;
+        let pos = self.get_pos();
+        if pos.row >= self.rows.len() {
+            self.current_pos.row = self.rows.len() - 1
+        }
+        if pos.col >= self.columns.len() {
+            self.current_pos.col = self.columns.len() - 1
+        }
     }
 
     pub fn get_rows(&self) -> Vec<Vec<Data>> {

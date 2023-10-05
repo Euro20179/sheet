@@ -112,7 +112,10 @@ impl Program<'_> {
                 let key = String::from_utf8(buf[0..bytes_read].to_vec()).unwrap();
                 let ch = buf[0];
 
-                if ch >= 48 && ch <= 57 {
+                //if len is 0 we dont want to count 0 as a number
+                if count.len() == 0 && ch >= 49 && ch <= 57 {
+                    count += &String::from(ch as char);
+                } else if count.len() > 0 && ch >= 48 && ch <= 57 {
                     count += &String::from(ch as char);
                 } else {
                     if count == "" {

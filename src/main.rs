@@ -164,8 +164,7 @@ fn handle_normal_mode(program: &mut program::Program, key: program::KeySequence)
         "q" => program.running = false,
         "i" => program.set_mode(program::Mode::Insert),
         "u" => program.undo(),
-        "r" => program.redo(),
-        ":" => {
+        "r" => program.redo(), ":" => {
             program.command_line.clear_text();
             program.set_mode(program::Mode::Command);
         }
@@ -214,6 +213,12 @@ fn handle_normal_mode(program: &mut program::Program, key: program::KeySequence)
             for _ in 0..key.count {
                 program.table.move_cursor(Direction::Up);
             }
+        }
+        "0" | "^" => {
+            program.table.move_cursor(Direction::MostLeft)
+        },
+        "$" => {
+            program.table.move_cursor(Direction::MostRight)
         }
         "\x1b[C" | "l" => {
             for _ in 0..key.count {
@@ -286,9 +291,11 @@ fn handle_normal_mode(program: &mut program::Program, key: program::KeySequence)
                 program.table.remove_col(col);
             }
         }
+        "S" => program.save_state(),
         "w" => {
             let sheet = program.table.to_sheet();
             std::fs::write(program.get_file_path(), sheet).unwrap();
+            program.save_state();
             program.command_line.print("Saved")
         }
         "x" => {

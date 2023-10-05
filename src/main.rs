@@ -4,6 +4,8 @@ mod program;
 mod sheet_tokenizer;
 mod table;
 mod command_line;
+mod undo_tree;
+
 use command_line::CommandLine;
 use program::Program;
 use std::os::unix::io::AsRawFd;
@@ -161,6 +163,8 @@ fn handle_normal_mode(program: &mut program::Program, key: program::KeySequence)
         //TODO: add detection for if the file is saved
         "q" => program.running = false,
         "i" => program.set_mode(program::Mode::Insert),
+        "u" => program.undo(),
+        "r" => program.redo(),
         ":" => {
             program.command_line.clear_text();
             program.set_mode(program::Mode::Command);
@@ -300,7 +304,10 @@ fn handle_insert_mode(program: &mut program::Program, key: program::KeySequence)
     match key.action as u8 {
         //backspace
         127 => table.remove_last_char_in_cell(&table.get_pos()),
-        10 => program.set_mode(program::Mode::Normal),
+        10 => {
+            program.save_state();
+            program.set_mode(program::Mode::Normal)
+        },
         b'\t' => table.move_cursor(Direction::Right),
         b'=' => {
             if table.cursor_pos_is_empty() {

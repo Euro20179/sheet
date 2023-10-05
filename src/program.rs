@@ -1,7 +1,9 @@
 use std::io::{Read, Stdin};
+use std::rc::Rc;
 
 use crate::command_line::CommandLine;
 use crate::table::Table;
+use crate::undo_tree::{self, UndoTree};
 
 #[derive(Eq, PartialEq, Clone, Copy)]
 pub enum Mode {
@@ -16,18 +18,20 @@ pub struct KeySequence {
     pub key: String,
 }
 
-pub struct TermInfo{
+pub struct TermInfo {
     pub cols: usize,
-    pub lines: usize
+    pub lines: usize,
 }
 
 pub struct Program<'a> {
     mode: Mode,
     file_path: String,
+    undo_tree: undo_tree::UndoTree,
     pub table: &'a mut Table,
     pub command_line: &'a mut CommandLine,
     pub running: bool,
-    pub term_info: TermInfo
+    pub term_info: TermInfo,
+    pub previous_tables: Vec<Table>,
 }
 
 impl Program<'_> {
@@ -36,13 +40,47 @@ impl Program<'_> {
         table: &'a mut Table,
         command_line: &'a mut CommandLine,
     ) -> Program<'a> {
+        let rows = table.get_rows();
         Program {
             command_line,
             mode: Mode::Normal,
             table,
             file_path: fp.to_string(),
             running: true,
-            term_info: TermInfo { cols: 30, lines: 20 }
+            term_info: TermInfo {
+                cols: 30,
+                lines: 20,
+            },
+            previous_tables: vec![],
+            undo_tree: UndoTree::new(Box::new(rows)),
+        }
+    }
+
+    pub fn save_state(&mut self) {
+        self.undo_tree = self.undo_tree.save(Box::new(self.table.get_rows()));
+    }
+
+    pub fn undo(&mut self) {
+        let tree = self.undo_tree.undo();
+        match tree {
+            None => self.command_line.print("Cannot undo"),
+            Some(t) => {
+                self.command_line.print("Undo");
+                self.table.set_data(*t.get_state());
+                self.undo_tree = *t;
+            }
+        }
+    }
+
+    pub fn redo(&mut self) {
+        let tree = self.undo_tree.redo();
+        match tree {
+            None => self.command_line.print("Cannot redo"),
+            Some(t) => {
+                self.command_line.print("Redo");
+                self.table.set_data(*t.get_state());
+                self.undo_tree = *t;
+            }
         }
     }
 
@@ -54,7 +92,7 @@ impl Program<'_> {
         self.mode = mode;
     }
 
-    pub fn is_mode(&self, mode: Mode) -> bool{
+    pub fn is_mode(&self, mode: Mode) -> bool {
         if self.mode == mode {
             return true;
         }
@@ -94,9 +132,9 @@ impl Program<'_> {
                 return KeySequence {
                     action: ch as char,
                     key,
-                    count: 1
+                    count: 1,
                 };
-            },
+            }
         }
     }
 }

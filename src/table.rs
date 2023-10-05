@@ -12,7 +12,7 @@ macro_rules! IF {
 
 use crate::{
     calculator::{self, calculate},
-    position_parser, sheet_tokenizer, program,
+    position_parser, program, sheet_tokenizer,
 };
 
 pub fn base_26_to_10(n: String) -> usize {
@@ -50,18 +50,20 @@ fn handle_equation(
 ) -> Result<String, &'static str> {
     let mut map: HashMap<String, calculator::CalculatorValue> = HashMap::new();
 
-    map.insert("%recursion".to_string(), calculator::CalculatorValue::Number(0.0));
+    map.insert(
+        "%recursion".to_string(),
+        calculator::CalculatorValue::Number(0.0),
+    );
 
     let ans = match calculate(expr, &mut map, table) {
         Ok(calculator::CalculatorValue::String(s)) => s.to_string(),
         Ok(calculator::CalculatorValue::Number(n)) => n.to_string(),
         Ok(calculator::CalculatorValue::Range(x, y)) => format!("{:?}..{:?}", x, y),
-        Err(e) => {
-            match e {
-                calculator::CalculatorError::RecursionLimit => "Err#1: Recursion limit reached",
-                calculator::CalculatorError::InvalidBinaryOp(_) => "Err#2: Invalid binary operation",
-            }.to_owned()
+        Err(e) => match e {
+            calculator::CalculatorError::RecursionLimit => "Err#1: Recursion limit reached",
+            calculator::CalculatorError::InvalidBinaryOp(_) => "Err#2: Invalid binary operation",
         }
+        .to_owned(),
     };
     return Ok(ans);
 }
@@ -164,6 +166,15 @@ fn largest_list_in_2d_array<T>(array: &Vec<Vec<T>>) -> usize {
 }
 
 impl Table {
+    pub fn set_data(&mut self, rows: Vec<Vec<Data>>) {
+        let columns = Table::build_columns_from_rows(&rows);
+        self.rows = rows;
+        self.columns = columns;
+    }
+
+    pub fn get_rows(&self) -> Vec<Vec<Data>> {
+        return self.rows.clone();
+    }
     pub fn get_pos(&self) -> Position {
         return self.current_pos;
     }
@@ -204,16 +215,15 @@ impl Table {
     }
 
     pub fn get_col_width(&self, col_no: usize) -> Option<usize> {
-        if col_no >= self.column_sizes.len(){
+        if col_no >= self.column_sizes.len() {
             None
-        }
-        else {
+        } else {
             Some(self.column_sizes[col_no])
         }
     }
 
-    pub fn resize_col(&mut self, col_no: usize, new_size: usize){
-        if col_no < self.column_sizes.len(){
+    pub fn resize_col(&mut self, col_no: usize, new_size: usize) {
+        if col_no < self.column_sizes.len() {
             self.column_sizes[col_no] = new_size;
         }
     }
@@ -228,15 +238,15 @@ impl Table {
         }
     }
 
-    pub fn set_cursor_pos(&mut self, row_no: usize, col_no: usize) {
-        if row_no < self.rows.len() {
-            self.current_pos.row = row_no;
-        }
-        if col_no < self.columns.len() {
-            self.current_pos.col = col_no;
-        }
-    }
-
+    // pub fn set_cursor_pos(&mut self, row_no: usize, col_no: usize) {
+    //     if row_no < self.rows.len() {
+    //         self.current_pos.row = row_no;
+    //     }
+    //     if col_no < self.columns.len() {
+    //         self.current_pos.col = col_no;
+    //     }
+    // }
+    //
     pub fn move_cursor(&mut self, direction: Direction) {
         match direction {
             Direction::Up => {
@@ -471,7 +481,7 @@ impl Table {
                 base_10_to_col_num(i + 1),
                 max_width = self.column_sizes[i]
             );
-        };
+        }
         text += &String::from("\n");
         for row in &self.rows[row_slice[0]..row_slice[1]] {
             let mut col_no = col_slice[0];
@@ -656,23 +666,8 @@ impl Table {
             }
         }
 
-        let column_sizes: Vec<usize>;
-        if rows.len() > 0 {
-            column_sizes = rows
-                .remove(0)
-                .into_iter()
-                .map(|d| {
-                    if let Data::Number(n) = d {
-                        let size: usize = n.parse().unwrap();
-                        return size;
-                    }
-                    return 10;
-                })
-                .collect();
-        } else {
-            rows.push(vec![Data::String(String::from(""))]);
-            column_sizes = vec![10];
-        }
+        let column_sizes = determine_column_sizes_from_rows(&mut rows);
+
         let columns = Table::build_columns_from_rows(&rows);
         Table::pad_rows(&mut rows);
         return Table {
@@ -682,4 +677,26 @@ impl Table {
             column_sizes,
         };
     }
+}
+
+///Mutates rows to remove the first row which is for column sizes
+fn determine_column_sizes_from_rows(rows: &mut Vec<Vec<Data>>) -> Vec<usize> {
+    let column_sizes: Vec<usize>;
+    if rows.len() > 0 {
+        column_sizes = rows
+            .remove(0)
+            .into_iter()
+            .map(|d| {
+                if let Data::Number(n) = d {
+                    let size: usize = n.parse().unwrap();
+                    return size;
+                }
+                return 10;
+            })
+            .collect();
+    } else {
+        rows.push(vec![Data::String(String::from(""))]);
+        column_sizes = vec![10];
+    }
+    return column_sizes;
 }

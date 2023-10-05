@@ -52,7 +52,7 @@ impl Program<'_> {
                 lines: 20,
             },
             previous_tables: vec![],
-            undo_tree: UndoTree::new(Box::new(rows)),
+            undo_tree: UndoTree::new(Box::new(rows), 0),
         }
     }
 
@@ -65,7 +65,7 @@ impl Program<'_> {
         match tree {
             None => self.command_line.print("Cannot undo"),
             Some(t) => {
-                self.command_line.print("Undo");
+                self.command_line.print(&format!("Undo {}", t.get_id()));
                 self.table.set_data(*t.get_state());
                 self.undo_tree = *t;
             }
@@ -77,7 +77,7 @@ impl Program<'_> {
         match tree {
             None => self.command_line.print("Cannot redo"),
             Some(t) => {
-                self.command_line.print("Redo");
+                self.command_line.print(&format!("Redo {}", t.get_id()));
                 self.table.set_data(*t.get_state());
                 self.undo_tree = *t;
             }
